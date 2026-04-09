@@ -1,25 +1,33 @@
 # school-project
 
-Cloudflare-native full-stack starter.
+Web viewer for the 25/26 college admission Excel analyzers.
 
-## Stack
+## What it does
 
-- Frontend: Cloudflare Pages static assets
-- Backend: Cloudflare Pages Functions
-- Database: Cloudflare D1
+- Upload a filled `25수능` or `26수능` analyzer workbook
+- Parse the workbook in the browser with SheetJS
+- Show the result sheets as a searchable, filterable web UI
+- Compare matched programs between the 25 and 26 analyzers when both files are loaded
 
-## Project files
+## Current flow
 
-- `wrangler.toml`: source of truth for Pages and D1 bindings
-- `functions/api/health.js`: runtime and database health endpoint
-- `functions/api/messages.js`: guestbook-style read/write API
-- `migrations/0001_initial.sql`: D1 schema
+1. Open the original analyzer in Excel or the Excel mobile app
+2. Enter scores and save the file
+3. Upload the saved workbook to this web app
+4. Browse `이과` / `문과` results, inspect thresholds, and compare years
 
-## Commands
+## Important files
 
-- Apply the schema remotely:
-  `npx wrangler d1 execute school-project-db --remote --file migrations/0001_initial.sql`
-- Start local development:
-  `npx wrangler pages dev .`
-- List Pages deployments:
-  `npx wrangler pages deployment list --project-name school-project`
+- `index.html`: analyzer web UI
+- `app.js`: workbook parser, filters, result explorer, compare view
+- `vendor/xlsx.full.min.js`: browser bundle used to read `.xlsx` and `.xlsb`
+- `wrangler.toml`: Cloudflare Pages configuration
+
+## Local preview
+
+- `npx wrangler pages dev .`
+
+## Notes
+
+- The app reads the calculated values already stored in the uploaded workbook.
+- It does not modify the original Excel file.

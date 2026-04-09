@@ -1,23 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>school-project | Cloudflare Full Stack</title>
+  <title>수능 합격예측 분석기 웹</title>
   <style>
     :root {
       color-scheme: light;
-      --sand: #efe4ce;
-      --paper: rgba(255, 249, 240, 0.8);
-      --ink: #112d2b;
-      --muted: #55716d;
-      --signal: #ff7a45;
-      --signal-soft: rgba(255, 122, 69, 0.14);
-      --mint: #9bd3c8;
-      --line: rgba(17, 45, 43, 0.12);
-      --shadow: rgba(17, 45, 43, 0.12);
-      --good: #1f7a55;
-      --bad: #b24638;
+      --bg-top: #fff2d9;
+      --bg-bottom: #efe6d3;
+      --surface: rgba(255, 251, 243, 0.82);
+      --surface-strong: rgba(255, 255, 255, 0.92);
+      --ink: #142d2c;
+      --muted: #5a7470;
+      --line: rgba(20, 45, 44, 0.12);
+      --signal: #ef6a2e;
+      --signal-soft: rgba(239, 106, 46, 0.12);
+      --mint: #77b8ac;
+      --mint-soft: rgba(119, 184, 172, 0.18);
+      --good: #17724e;
+      --good-soft: rgba(23, 114, 78, 0.12);
+      --warn: #996607;
+      --warn-soft: rgba(153, 102, 7, 0.14);
+      --bad: #a14434;
+      --bad-soft: rgba(161, 68, 52, 0.12);
+      --shadow: rgba(20, 45, 44, 0.12);
     }
 
     * {
@@ -30,291 +37,505 @@
       color: var(--ink);
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(255, 211, 158, 0.95), transparent 28rem),
-        radial-gradient(circle at right 20%, rgba(155, 211, 200, 0.6), transparent 26rem),
-        linear-gradient(160deg, #f5ecdb 0%, #ecdfc5 100%);
+        radial-gradient(circle at top left, rgba(255, 206, 138, 0.8), transparent 28rem),
+        radial-gradient(circle at right 15%, rgba(119, 184, 172, 0.5), transparent 24rem),
+        linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
     }
 
     body::before,
     body::after {
       content: "";
       position: fixed;
-      inset: auto;
       width: 16rem;
       height: 16rem;
       border-radius: 50%;
-      filter: blur(28px);
+      filter: blur(30px);
       pointer-events: none;
       opacity: 0.8;
     }
 
     body::before {
-      top: 3rem;
+      top: 2rem;
       right: -3rem;
-      background: rgba(255, 122, 69, 0.22);
+      background: rgba(239, 106, 46, 0.16);
     }
 
     body::after {
-      bottom: 2rem;
+      bottom: 1rem;
       left: -4rem;
-      background: rgba(76, 122, 116, 0.2);
+      background: rgba(119, 184, 172, 0.16);
     }
 
     .shell {
-      width: min(1180px, calc(100% - 32px));
+      width: min(1400px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 32px 0 56px;
+      padding: 28px 0 56px;
     }
 
     .hero,
-    .panel,
-    .entry {
-      background: var(--paper);
+    .panel {
+      background: var(--surface);
       border: 1px solid var(--line);
-      box-shadow: 0 20px 60px var(--shadow);
+      box-shadow: 0 24px 60px var(--shadow);
       backdrop-filter: blur(14px);
     }
 
     .hero {
       display: grid;
-      gap: 24px;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 22px;
       padding: 28px;
-      border-radius: 30px;
-      overflow: hidden;
+      border-radius: 32px;
+      margin-bottom: 22px;
     }
 
-    .hero-top {
-      display: flex;
-      justify-content: space-between;
+    .hero-copy {
+      display: grid;
       gap: 16px;
-      align-items: flex-start;
+      align-content: start;
     }
 
     .eyebrow,
-    .badge {
+    .badge,
+    .pill {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       border-radius: 999px;
       padding: 8px 12px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      font-size: 0.84rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
     }
 
     .eyebrow {
-      background: var(--signal-soft);
+      width: fit-content;
       color: var(--signal);
+      background: var(--signal-soft);
+      text-transform: uppercase;
     }
 
     .badge {
-      background: rgba(17, 45, 43, 0.08);
+      width: fit-content;
       color: var(--ink);
+      background: rgba(20, 45, 44, 0.08);
     }
 
-    .headline {
+    .pill {
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(20, 45, 44, 0.08);
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: normal;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      font-size: clamp(2.8rem, 5vw, 5rem);
+      line-height: 0.96;
+      max-width: 10ch;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .step-grid,
+    .metric-grid,
+    .summary-grid,
+    .filter-grid,
+    .detail-grid,
+    .compare-grid {
       display: grid;
       gap: 14px;
     }
 
-    h1,
-    h2 {
-      font-family: Georgia, "Times New Roman", serif;
-      letter-spacing: -0.03em;
-      margin: 0;
+    .step-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
 
-    h1 {
-      font-size: clamp(2.8rem, 6vw, 5.6rem);
-      line-height: 0.94;
-      max-width: 10ch;
-    }
-
-    .lead {
-      max-width: 58ch;
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.75;
-      font-size: 1.02rem;
-    }
-
-    .stack-grid,
-    .content-grid {
-      display: grid;
-      gap: 18px;
-    }
-
-    .stack-grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
-
-    .card {
-      padding: 18px;
+    .step-card,
+    .metric-card,
+    .detail-card,
+    .compare-card {
       border-radius: 22px;
-      background: rgba(255, 255, 255, 0.58);
-      border: 1px solid rgba(17, 45, 43, 0.1);
+      padding: 18px;
+      border: 1px solid rgba(20, 45, 44, 0.1);
+      background: rgba(255, 255, 255, 0.6);
     }
 
-    .card strong {
+    .step-card strong,
+    .metric-card strong,
+    .detail-card strong,
+    .compare-card strong {
       display: block;
       margin-bottom: 6px;
-      font-size: 1rem;
-    }
-
-    .card p,
-    .panel p,
-    .entry p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .content-grid {
-      grid-template-columns: 1.1fr 0.9fr;
-      margin-top: 22px;
     }
 
     .panel {
       border-radius: 28px;
       padding: 24px;
+      margin-bottom: 22px;
     }
 
     .panel-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 16px;
       margin-bottom: 18px;
     }
 
-    .status-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .status-chip {
-      border-radius: 999px;
-      padding: 10px 14px;
-      background: rgba(17, 45, 43, 0.08);
-      color: var(--ink);
-      font-size: 0.92rem;
-      font-weight: 700;
-    }
-
-    .status-chip.good {
-      background: rgba(31, 122, 85, 0.12);
-      color: var(--good);
-    }
-
-    .status-chip.bad {
-      background: rgba(178, 70, 56, 0.12);
-      color: var(--bad);
-    }
-
-    form {
+    .dropzone {
       display: grid;
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    label {
-      display: grid;
-      gap: 8px;
-      font-weight: 700;
-      font-size: 0.95rem;
-    }
-
-    input,
-    textarea,
-    button {
-      font: inherit;
-    }
-
-    input,
-    textarea {
+      gap: 12px;
+      justify-items: start;
       width: 100%;
-      padding: 14px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(17, 45, 43, 0.16);
-      background: rgba(255, 255, 255, 0.74);
-      color: var(--ink);
+      min-height: 170px;
+      padding: 22px;
+      border: 1.5px dashed rgba(20, 45, 44, 0.18);
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(255, 247, 235, 0.74)),
+        radial-gradient(circle at top right, rgba(239, 106, 46, 0.09), transparent 15rem);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease;
     }
 
-    textarea {
-      min-height: 130px;
-      resize: vertical;
+    .dropzone:hover,
+    .dropzone.is-dragging {
+      transform: translateY(-1px);
+      border-color: rgba(239, 106, 46, 0.36);
+    }
+
+    .dropzone input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
     }
 
     button {
       cursor: pointer;
       border: 0;
       border-radius: 999px;
-      padding: 14px 18px;
-      background: linear-gradient(135deg, #ff7a45, #f15f2f);
-      color: white;
+      padding: 12px 16px;
       font-weight: 800;
-      letter-spacing: 0.02em;
-      box-shadow: 0 12px 28px rgba(241, 95, 47, 0.28);
+      letter-spacing: 0.01em;
     }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: wait;
+    button.primary {
+      background: linear-gradient(135deg, #ef6a2e, #d84f1b);
+      color: white;
+      box-shadow: 0 12px 28px rgba(216, 79, 27, 0.24);
     }
 
-    .helper {
-      font-size: 0.92rem;
-      color: var(--muted);
+    button.ghost {
+      background: rgba(20, 45, 44, 0.08);
+      color: var(--ink);
     }
 
-    .entries {
-      display: grid;
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .entry {
-      padding: 18px;
-      border-radius: 20px;
-    }
-
-    .entry header {
+    .file-list,
+    .pill-list,
+    .tab-list {
       display: flex;
-      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .file-chip {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--surface-strong);
+      border: 1px solid rgba(20, 45, 44, 0.08);
+      min-width: 220px;
+    }
+
+    .file-chip strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .dashboard,
+    .results-layout {
+      display: grid;
+      gap: 22px;
+    }
+
+    .dashboard {
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .metric-card .value,
+    .compare-card .value {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .metric-card small,
+    .compare-card small {
+      color: var(--muted);
+    }
+
+    .score-columns {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .compare-grid {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .compare-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .compare-item {
+      display: grid;
+      gap: 6px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(20, 45, 44, 0.08);
+    }
+
+    .compare-item strong {
+      display: block;
+      color: var(--ink);
+    }
+
+    .filter-grid {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(20, 45, 44, 0.14);
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+    }
+
+    .tab-list button {
+      background: rgba(20, 45, 44, 0.08);
+      color: var(--ink);
+    }
+
+    .tab-list button.active {
+      background: linear-gradient(135deg, #ef6a2e, #d84f1b);
+      color: white;
+    }
+
+    .results-layout {
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+      align-items: start;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 22px;
+      border: 1px solid rgba(20, 45, 44, 0.1);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: rgba(252, 248, 240, 0.96);
+      z-index: 1;
+      color: var(--ink);
+      text-align: left;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(20, 45, 44, 0.08);
+      vertical-align: top;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.16s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(239, 106, 46, 0.05);
+    }
+
+    tbody tr.selected {
+      background: rgba(119, 184, 172, 0.14);
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-tag.good {
+      background: var(--good-soft);
+      color: var(--good);
+    }
+
+    .status-tag.mid {
+      background: var(--mint-soft);
+      color: #165e54;
+    }
+
+    .status-tag.warn {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .status-tag.bad {
+      background: var(--bad-soft);
+      color: var(--bad);
+    }
+
+    .status-tag.neutral {
+      background: rgba(20, 45, 44, 0.08);
+      color: var(--muted);
+    }
+
+    .delta.up {
+      color: var(--good);
+      font-weight: 800;
+    }
+
+    .delta.down {
+      color: var(--bad);
+      font-weight: 800;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .detail-body {
+      display: grid;
       gap: 16px;
-      align-items: baseline;
-      margin-bottom: 8px;
     }
 
-    .entry strong {
-      font-size: 1.04rem;
+    .detail-grid {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
 
-    .entry time {
-      font-size: 0.88rem;
+    .detail-card .value {
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .empty-state {
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px dashed rgba(20, 45, 44, 0.16);
       color: var(--muted);
+      background: rgba(255, 255, 255, 0.5);
     }
 
-    .empty {
-      padding: 18px;
-      border-radius: 20px;
-      border: 1px dashed rgba(17, 45, 43, 0.18);
-      color: var(--muted);
+    .footnote {
+      margin-top: 14px;
+      font-size: 0.92rem;
     }
 
-    @media (max-width: 880px) {
-      .content-grid {
+    @media (max-width: 1120px) {
+      .hero,
+      .dashboard,
+      .results-layout {
         grid-template-columns: 1fr;
       }
+    }
 
-      .hero-top,
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100%, calc(100% - 20px));
+        padding-top: 18px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+      }
+
       .panel-header,
-      .entry header {
+      .status-line {
         flex-direction: column;
         align-items: flex-start;
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 10vw, 4rem);
       }
     }
   </style>
@@ -322,79 +543,197 @@
 <body>
   <div class="shell">
     <section class="hero">
-      <div class="hero-top">
-        <span class="eyebrow">Cloudflare Native</span>
-        <span class="badge">Pages + Functions + D1</span>
-      </div>
-
-      <div class="headline">
-        <h1>One stack. One network. One deploy flow.</h1>
-        <p class="lead">
-          This project now uses Cloudflare services end to end. Static assets are served by Pages,
-          API routes run on Pages Functions, and application data lives in D1.
+      <div class="hero-copy">
+        <span class="eyebrow">Analyzer Web</span>
+        <h1>수능 합격예측 분석기 웹</h1>
+        <p>
+          25수능·26수능 고속성장분석기 엑셀 파일을 업로드하면 결과 시트를 웹에서 더 빠르게
+          검색, 필터, 정렬, 비교할 수 있습니다.
         </p>
+        <div class="step-grid">
+          <article class="step-card">
+            <strong>1. 엑셀에서 점수 입력</strong>
+            <p>원본 분석기 파일에 점수를 입력하고 저장합니다.</p>
+          </article>
+          <article class="step-card">
+            <strong>2. 웹에 업로드</strong>
+            <p>`.xlsx` 또는 `.xlsb` 파일을 그대로 올리면 됩니다.</p>
+          </article>
+          <article class="step-card">
+            <strong>3. 결과 탐색</strong>
+            <p>이과·문과 탭, 모집군, 지역, 합격가능성 기준으로 즉시 좁힙니다.</p>
+          </article>
+        </div>
       </div>
 
-      <div class="stack-grid">
-        <article class="card">
-          <strong>Frontend on Pages</strong>
-          <p>Static files deploy from GitHub and fan out to the edge automatically.</p>
+      <div class="step-grid">
+        <article class="step-card">
+          <strong>지원 파일</strong>
+          <p>`25수능 합격예측 분석기(.xlsx)`와 `26수능 합격예측 분석기(.xlsb)`를 자동 감지합니다.</p>
         </article>
-        <article class="card">
-          <strong>Backend on Functions</strong>
-          <p>Requests to <code>/api/*</code> are handled by Cloudflare runtime code in this repo.</p>
+        <article class="step-card">
+          <strong>연도 비교</strong>
+          <p>두 파일을 함께 올리면 동일 모집단위의 지원선 변화를 비교합니다.</p>
         </article>
-        <article class="card">
-          <strong>Database on D1</strong>
-          <p>Guestbook entries are stored in a Cloudflare SQLite database with zero extra hosting.</p>
+        <article class="step-card">
+          <strong>개인 결과 유지</strong>
+          <p>웹은 업로드된 파일 안의 계산 결과를 읽기만 하며 원본 파일을 수정하지 않습니다.</p>
         </article>
       </div>
     </section>
 
-    <section class="content-grid">
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Runtime status</h2>
-            <p>The panel below pulls live data from Cloudflare Functions and D1.</p>
-          </div>
-          <span class="badge" id="health-label">Checking edge runtime</span>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>분석기 업로드</h2>
+          <p>엑셀에서 계산이 끝난 분석기 파일을 올리면 결과표를 웹 인터페이스로 변환합니다.</p>
         </div>
+        <span class="badge" id="upload-status">파일을 불러오지 않았습니다.</span>
+      </div>
 
-        <div class="status-row" id="status-row">
-          <span class="status-chip">Pages deployment active</span>
-          <span class="status-chip" id="functions-chip">Functions: pending</span>
-          <span class="status-chip" id="database-chip">D1: pending</span>
-        </div>
+      <label class="dropzone" id="dropzone">
+        <input id="workbook-input" type="file" accept=".xlsx,.xlsb" multiple>
+        <strong>여기를 클릭하거나 파일을 끌어다 놓으세요</strong>
+        <p>25수능과 26수능 파일을 동시에 올릴 수 있습니다. 같은 연도 파일을 다시 올리면 최신 파일로 교체됩니다.</p>
+        <span class="badge">지원 형식: .xlsx / .xlsb</span>
+      </label>
 
-        <form id="entry-form">
-          <label>
-            Name
-            <input id="author" name="author" maxlength="40" placeholder="Your name" required>
-          </label>
-          <label>
-            Message
-            <textarea id="content" name="content" maxlength="280" placeholder="Leave a note in D1" required></textarea>
-          </label>
-          <button id="submit-button" type="submit">Write to Cloudflare D1</button>
-          <p class="helper" id="form-status">No message submitted yet.</p>
-        </form>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Guestbook</h2>
-            <p>Each entry is read from the D1 database through a Pages Function.</p>
-          </div>
-          <span class="badge" id="entry-count">0 entries</span>
-        </div>
-
-        <div class="entries" id="entries"></div>
-      </section>
+      <div class="status-line">
+        <div class="file-list" id="file-list"></div>
+        <button class="ghost" id="clear-button" type="button">불러온 결과 지우기</button>
+      </div>
     </section>
+
+    <div class="dashboard">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>업로드 요약</h2>
+            <p>현재 선택된 연도의 입력 점수와 결과 개수를 보여줍니다.</p>
+          </div>
+          <span class="badge" id="active-year-badge">연도 미선택</span>
+        </div>
+
+        <div class="summary-grid" id="summary-grid"></div>
+
+        <div class="score-columns">
+          <div>
+            <h3>수능 입력값</h3>
+            <div class="pill-list" id="exam-inputs"></div>
+          </div>
+          <div>
+            <h3>내신 입력값</h3>
+            <div class="pill-list" id="school-inputs"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="compare-panel" hidden>
+        <div class="panel-header">
+          <div>
+            <h2>25 vs 26 비교</h2>
+            <p>같은 모집단위 기준으로 지원선 차이를 비교합니다.</p>
+          </div>
+          <span class="badge" id="compare-badge">비교 준비 전</span>
+        </div>
+
+        <div class="compare-grid" id="compare-grid"></div>
+        <div class="compare-list" id="compare-list"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>결과 필터</h2>
+          <p>연도, 계열, 합격가능성, 모집군, 지역, 검색어로 결과를 좁힙니다.</p>
+        </div>
+      </div>
+
+      <div class="tab-list" id="track-tabs"></div>
+
+      <div class="filter-grid">
+        <div class="field">
+          <label for="year-filter">연도</label>
+          <select id="year-filter"></select>
+        </div>
+        <div class="field">
+          <label for="status-filter">합격가능성</label>
+          <select id="status-filter"></select>
+        </div>
+        <div class="field">
+          <label for="group-filter">모집군</label>
+          <select id="group-filter"></select>
+        </div>
+        <div class="field">
+          <label for="region-filter">지역</label>
+          <select id="region-filter"></select>
+        </div>
+        <div class="field">
+          <label for="sort-filter">정렬</label>
+          <select id="sort-filter">
+            <option value="status">합격가능성 우선</option>
+            <option value="delta-desc">내점수-예상점수 큰 순</option>
+            <option value="delta-asc">내점수-예상점수 작은 순</option>
+            <option value="expected-desc">예상점수 높은 순</option>
+            <option value="expected-asc">예상점수 낮은 순</option>
+            <option value="name">대학명 가나다순</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="search-input">검색</label>
+          <input id="search-input" type="search" placeholder="대학교, 전공, 선발유형, 점수환산">
+        </div>
+      </div>
+    </section>
+
+    <div class="results-layout">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>결과 테이블</h2>
+            <p>행을 클릭하면 오른쪽에서 모집단위 상세와 반영 규칙을 확인할 수 있습니다.</p>
+          </div>
+          <span class="badge" id="result-count">0개 결과</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>대학</th>
+                <th>전공</th>
+                <th>상태</th>
+                <th>내점수</th>
+                <th>예상점수</th>
+                <th>차이</th>
+                <th>모집군</th>
+                <th>지역</th>
+                <th>선발유형</th>
+                <th>점수환산</th>
+              </tr>
+            </thead>
+            <tbody id="result-body"></tbody>
+          </table>
+        </div>
+        <p class="footnote" id="result-footnote"></p>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>선택 상세</h2>
+            <p>지원선과 반영 규칙, 영어 감점 정보를 한 곳에서 확인합니다.</p>
+          </div>
+        </div>
+        <div class="detail-body" id="detail-body">
+          <div class="empty-state">분석기 파일을 업로드한 뒤 결과 행을 선택하세요.</div>
+        </div>
+      </aside>
+    </div>
   </div>
 
+  <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./app.js" defer></script>
 </body>
 </html>
