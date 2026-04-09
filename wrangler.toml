@@ -1,0 +1,8 @@
+name = "school-project"
+pages_build_output_dir = "."
+compatibility_date = "2026-04-09"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "school-project-db"
+database_id = "b9bcb85f-741a-40cd-a14f-40468a151b97"

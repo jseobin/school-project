@@ -1,9 +1,25 @@
 # school-project
 
-Minimal static site prepared for GitHub to Cloudflare Pages deployment.
+Cloudflare-native full-stack starter.
 
-## Cloudflare Pages settings
+## Stack
 
-- Production branch: `main`
-- Build command: blank or `exit 0`
-- Build output directory: repository root
+- Frontend: Cloudflare Pages static assets
+- Backend: Cloudflare Pages Functions
+- Database: Cloudflare D1
+
+## Project files
+
+- `wrangler.toml`: source of truth for Pages and D1 bindings
+- `functions/api/health.js`: runtime and database health endpoint
+- `functions/api/messages.js`: guestbook-style read/write API
+- `migrations/0001_initial.sql`: D1 schema
+
+## Commands
+
+- Apply the schema remotely:
+  `npx wrangler d1 execute school-project-db --remote --file migrations/0001_initial.sql`
+- Start local development:
+  `npx wrangler pages dev .`
+- List Pages deployments:
+  `npx wrangler pages deployment list --project-name school-project`
