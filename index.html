@@ -3,121 +3,278 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>26수능 합격예측 분석기</title>
+  <title>26수능 정시 전략 대시보드</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f4efe4;
-      --paper: rgba(255, 252, 246, 0.88);
-      --paper-strong: rgba(255, 255, 255, 0.95);
-      --line: rgba(30, 42, 45, 0.12);
-      --ink: #162326;
-      --muted: #56696d;
-      --accent: #d86b2c;
-      --accent-soft: rgba(216, 107, 44, 0.12);
-      --mint: #3b7c73;
-      --mint-soft: rgba(59, 124, 115, 0.12);
-      --good: #197447;
-      --good-soft: rgba(25, 116, 71, 0.12);
-      --warn: #8f6310;
-      --warn-soft: rgba(143, 99, 16, 0.14);
-      --bad: #9b4336;
-      --bad-soft: rgba(155, 67, 54, 0.12);
-      --shadow: rgba(29, 38, 41, 0.12);
+      color-scheme: dark;
+      --bg: #071412;
+      --bg-soft: #0d201d;
+      --panel: rgba(11, 24, 22, 0.84);
+      --panel-strong: rgba(17, 34, 31, 0.94);
+      --panel-soft: rgba(18, 39, 35, 0.72);
+      --line: rgba(143, 199, 185, 0.14);
+      --line-strong: rgba(143, 199, 185, 0.22);
+      --text: #f2f7f5;
+      --muted: #9db5af;
+      --accent: #39d0a1;
+      --accent-strong: #1d9b79;
+      --accent-soft: rgba(57, 208, 161, 0.14);
+      --sky: #62c5ff;
+      --sky-soft: rgba(98, 197, 255, 0.16);
+      --amber: #f5c14b;
+      --amber-soft: rgba(245, 193, 75, 0.16);
+      --rose: #ff7e8a;
+      --rose-soft: rgba(255, 126, 138, 0.16);
+      --shadow: rgba(0, 0, 0, 0.28);
+      --radius-xl: 30px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      color: var(--ink);
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Aptos", "Malgun Gothic", sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(255, 203, 127, 0.64), transparent 26rem),
-        radial-gradient(circle at 86% 14%, rgba(59, 124, 115, 0.26), transparent 24rem),
-        linear-gradient(160deg, #fff5df 0%, var(--bg) 100%);
+        radial-gradient(circle at top left, rgba(57, 208, 161, 0.2), transparent 25rem),
+        radial-gradient(circle at 85% 18%, rgba(98, 197, 255, 0.16), transparent 24rem),
+        linear-gradient(160deg, #04100e 0%, #071412 48%, #0d1e1b 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(24px);
+      opacity: 0.9;
+    }
+
+    body::before {
+      top: 6rem;
+      left: -6rem;
+      width: 18rem;
+      height: 18rem;
+      background: rgba(57, 208, 161, 0.18);
+      border-radius: 50%;
+      animation: float-orb 14s ease-in-out infinite;
+    }
+
+    body::after {
+      right: -6rem;
+      bottom: 10rem;
+      width: 20rem;
+      height: 20rem;
+      background: rgba(98, 197, 255, 0.12);
+      border-radius: 50%;
+      animation: float-orb 18s ease-in-out infinite reverse;
+    }
+
+    @keyframes float-orb {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(1.8rem, -1.4rem, 0) scale(1.08);
+      }
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .page {
-      width: min(1500px, calc(100% - 28px));
+      position: relative;
+      z-index: 1;
+      width: min(1540px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 26px 0 56px;
+      padding: 22px 0 54px;
     }
 
+    .topbar,
     .hero,
-    .panel {
-      background: var(--paper);
+    .panel,
+    .metric,
+    .hero-card {
+      animation: rise 0.7s ease both;
+    }
+
+    .topbar,
+    .hero,
+    .panel,
+    .metric,
+    .hero-card,
+    .result-shell,
+    .watch-item,
+    .subject-card,
+    .school-card,
+    .signal-card {
       border: 1px solid var(--line);
-      box-shadow: 0 24px 60px var(--shadow);
-      backdrop-filter: blur(16px);
+      box-shadow: 0 28px 80px var(--shadow);
+      backdrop-filter: blur(22px);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(15, 34, 31, 0.82), rgba(10, 20, 19, 0.86));
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 15px;
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #04100e;
+      background: linear-gradient(135deg, var(--accent), #89f3d0);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+    }
+
+    .brand-copy {
+      display: grid;
+      gap: 2px;
+    }
+
+    .brand-copy strong {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-copy span {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .topbar-meta {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .status-chip,
+    .eyebrow,
+    .tab,
+    .status-pill,
+    .summary-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .status-chip {
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .eyebrow {
+      width: fit-content;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: var(--accent);
+      background: var(--accent-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
     }
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
       gap: 18px;
-      padding: 28px;
-      border-radius: 30px;
-      margin-bottom: 22px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border-radius: var(--radius-xl);
+      background:
+        linear-gradient(135deg, rgba(16, 39, 35, 0.94), rgba(8, 18, 17, 0.9)),
+        radial-gradient(circle at top right, rgba(57, 208, 161, 0.12), transparent 30rem);
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -40% auto;
+      width: 24rem;
+      height: 24rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(57, 208, 161, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-copy,
+    .hero-side {
+      position: relative;
+      z-index: 1;
     }
 
     .hero-copy {
       display: grid;
-      gap: 14px;
-    }
-
-    .eyebrow,
-    .badge,
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: fit-content;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 800;
-    }
-
-    .eyebrow {
-      background: var(--accent-soft);
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .badge {
-      background: rgba(22, 35, 38, 0.08);
-    }
-
-    .chip {
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(22, 35, 38, 0.08);
-      font-weight: 700;
+      gap: 18px;
+      align-content: start;
     }
 
     h1,
     h2,
     h3 {
       margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
+      font-family: "Cambria", "Georgia", serif;
       letter-spacing: -0.03em;
     }
 
     h1 {
       max-width: 11ch;
-      font-size: clamp(2.7rem, 5vw, 4.8rem);
-      line-height: 0.95;
+      font-size: clamp(2.7rem, 5vw, 5rem);
+      line-height: 0.92;
     }
 
     h2 {
-      font-size: 1.6rem;
+      font-size: 1.55rem;
     }
 
     h3 {
-      font-size: 1.05rem;
+      font-size: 1.06rem;
     }
 
     p {
@@ -126,78 +283,243 @@
       line-height: 1.65;
     }
 
-    .hero-grid,
-    .stats-grid,
-    .control-grid,
-    .subject-grid,
-    .school-grid {
+    .hero-copy > p {
+      max-width: 58ch;
+      font-size: 1rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      font: inherit;
+      transition: transform 0.18s ease, filter 0.18s ease, background 0.18s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+
+    .primary,
+    .secondary,
+    .tab {
+      padding: 12px 16px;
+    }
+
+    .primary {
+      color: #04100e;
+      background: linear-gradient(135deg, var(--accent), #93f5d5);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+    }
+
+    .hero-note {
+      max-width: 36ch;
+      font-size: 0.9rem;
+    }
+
+    .signal-grid {
       display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 14px;
     }
 
-    .hero-grid {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    }
-
-    .stat-card,
+    .signal-card,
+    .hero-card,
+    .metric,
+    .panel,
     .subject-card,
     .school-card,
-    .detail-card {
+    .watch-item {
+      background: linear-gradient(180deg, rgba(20, 41, 37, 0.84), rgba(10, 22, 20, 0.88));
+    }
+
+    .signal-card {
       padding: 18px;
-      border-radius: 22px;
-      border: 1px solid rgba(22, 35, 38, 0.1);
-      background: rgba(255, 255, 255, 0.64);
+      border-radius: 20px;
     }
 
-    .stat-card strong,
+    .signal-card strong,
+    .metric strong,
     .subject-card strong,
-    .school-card strong,
-    .detail-card strong {
+    .school-card strong {
       display: block;
-      margin-bottom: 6px;
     }
 
-    .panel {
-      border-radius: 28px;
-      padding: 24px;
-      margin-bottom: 22px;
+    .signal-card strong {
+      margin-bottom: 8px;
+      font-size: 0.95rem;
     }
 
-    .panel-header {
+    .hero-side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero-card {
+      padding: 18px;
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(15, 30, 28, 0.94), rgba(8, 19, 18, 0.92)),
+        radial-gradient(circle at top right, rgba(98, 197, 255, 0.08), transparent 20rem);
+    }
+
+    .hero-card-header,
+    .panel-header,
+    .watch-panel-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 18px;
+      gap: 14px;
     }
 
-    .layout {
+    .kicker {
+      display: inline-flex;
+      margin-bottom: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sky);
+    }
+
+    .summary-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .summary-chip {
+      padding: 10px 14px;
+      font-size: 0.83rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .summary-chip strong {
+      font-size: 0.88rem;
+    }
+
+    .summary-chip span {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .spotlight-card {
       display: grid;
-      grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
-      gap: 22px;
+      gap: 14px;
+      margin-top: 16px;
+      padding: 18px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(57, 208, 161, 0.12), rgba(57, 208, 161, 0.03)),
+        rgba(9, 19, 18, 0.8);
+      border: 1px solid rgba(57, 208, 161, 0.18);
+    }
+
+    .spotlight-head {
+      display: grid;
+      gap: 5px;
+    }
+
+    .spotlight-head p {
+      font-size: 0.92rem;
+    }
+
+    .spotlight-score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .spotlight-metric {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .spotlight-metric span,
+    .metric span,
+    .gap-label,
+    .thresholds span,
+    .score-stack span,
+    .watch-item small {
+      color: var(--muted);
+    }
+
+    .spotlight-metric strong,
+    .score-stack strong,
+    .gap-block strong,
+    .metric strong {
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: minmax(350px, 410px) minmax(0, 1fr);
+      gap: 20px;
       align-items: start;
     }
 
-    .stack {
+    .sidebar {
       position: sticky;
       top: 18px;
       display: grid;
       gap: 18px;
     }
 
+    .panel {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background:
+        linear-gradient(180deg, rgba(13, 27, 25, 0.92), rgba(9, 18, 17, 0.94)),
+        radial-gradient(circle at top right, rgba(57, 208, 161, 0.08), transparent 18rem);
+    }
+
+    .panel-header {
+      margin-bottom: 18px;
+    }
+
+    .panel-header p {
+      max-width: 44ch;
+      font-size: 0.93rem;
+    }
+
     .subject-grid {
+      display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .subject-card,
+    .school-card {
+      padding: 16px;
+      border-radius: 20px;
     }
 
     .subject-card.wide {
       grid-column: 1 / -1;
     }
 
-    .school-grid {
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      max-height: 360px;
-      overflow: auto;
-      padding-right: 4px;
+    .subject-card strong {
+      margin-bottom: 10px;
     }
 
     .field,
@@ -211,111 +533,198 @@
     }
 
     label {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 800;
+      letter-spacing: 0.02em;
       color: var(--muted);
-      letter-spacing: 0.01em;
     }
 
-    select,
     input,
-    button {
-      font: inherit;
-    }
-
-    select,
-    input {
+    select {
       width: 100%;
-      border: 1px solid rgba(22, 35, 38, 0.12);
+      border: 1px solid var(--line-strong);
       border-radius: 16px;
       padding: 12px 14px;
-      color: var(--ink);
-      background: rgba(255, 255, 255, 0.84);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      font: inherit;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
     }
 
-    button {
-      cursor: pointer;
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 16px;
-      font-weight: 800;
-      letter-spacing: 0.01em;
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: rgba(57, 208, 161, 0.42);
+      background: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 0 0 4px rgba(57, 208, 161, 0.08);
     }
 
-    .primary {
-      color: white;
-      background: linear-gradient(135deg, #d86b2c, #c24b24);
+    input::placeholder {
+      color: #85a39c;
     }
 
-    .secondary {
-      color: var(--ink);
-      background: rgba(22, 35, 38, 0.08);
+    .school-grid {
+      display: grid;
+      gap: 12px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 4px;
     }
 
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+    .school-card {
+      display: grid;
+      gap: 8px;
     }
 
-    .stats-grid {
+    .school-card p {
+      font-size: 0.86rem;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .overview-grid {
+      display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      margin-bottom: 18px;
+      gap: 14px;
     }
 
     .metric {
-      padding: 16px 18px;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(22, 35, 38, 0.1);
+      padding: 18px 20px;
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric::after {
+      content: "";
+      position: absolute;
+      inset: auto auto -22px -10px;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(57, 208, 161, 0.08);
+      filter: blur(6px);
+    }
+
+    .metric--primary::after {
+      background: rgba(98, 197, 255, 0.12);
+    }
+
+    .metric--good::after {
+      background: rgba(57, 208, 161, 0.14);
+    }
+
+    .metric--mid::after {
+      background: rgba(245, 193, 75, 0.12);
+    }
+
+    .metric--low::after {
+      background: rgba(255, 126, 138, 0.14);
     }
 
     .metric span {
       display: block;
-      font-size: 0.84rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
     }
 
-    .metric strong {
-      font-size: 1.6rem;
-      letter-spacing: -0.03em;
-    }
-
-    .toolbar {
+    .result-panel {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 14px;
-      align-items: center;
-      margin-bottom: 18px;
+      gap: 18px;
+    }
+
+    .panel-header--result {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 18px;
+    }
+
+    .panel-actions {
+      display: grid;
+      gap: 12px;
+      justify-items: end;
+      min-width: min(100%, 420px);
     }
 
     .tab-row {
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      gap: 10px;
     }
 
     .tab {
-      background: rgba(22, 35, 38, 0.08);
-      color: var(--ink);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .tab.is-active {
-      color: white;
-      background: linear-gradient(135deg, #3b7c73, #265952);
+      color: #04100e;
+      background: linear-gradient(135deg, var(--accent), #89f3d0);
     }
 
-    .search-box {
-      width: 100%;
+    .search-wrap {
+      width: min(100%, 420px);
+    }
+
+    .result-layout {
+      display: grid;
+      grid-template-columns: minmax(270px, 310px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .watch-panel {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .watchlist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .watch-item {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 18px;
+    }
+
+    .watch-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .watch-item strong {
+      font-size: 0.96rem;
+    }
+
+    .watch-item p {
+      font-size: 0.82rem;
+    }
+
+    .watch-item-metrics {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.82rem;
     }
 
     .result-shell {
-      border-radius: 24px;
       overflow: hidden;
-      border: 1px solid rgba(22, 35, 38, 0.1);
-      background: var(--paper-strong);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(17, 34, 31, 0.92), rgba(10, 20, 19, 0.94));
     }
 
     table {
@@ -324,115 +733,177 @@
     }
 
     thead th {
-      padding: 14px 16px;
+      padding: 15px 16px;
       text-align: left;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--muted);
-      background: rgba(22, 35, 38, 0.06);
-      border-bottom: 1px solid rgba(22, 35, 38, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      letter-spacing: 0.02em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     tbody td {
-      padding: 13px 16px;
-      border-bottom: 1px solid rgba(22, 35, 38, 0.06);
+      padding: 15px 16px;
       vertical-align: top;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     tbody tr:hover {
-      background: rgba(216, 107, 44, 0.04);
+      background: rgba(57, 208, 161, 0.06);
     }
 
     .program {
       display: grid;
-      gap: 4px;
+      gap: 5px;
     }
 
     .program small {
       color: var(--muted);
-      font-size: 0.82rem;
+      font-size: 0.83rem;
     }
 
     .status-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 100px;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 0.82rem;
-      font-weight: 800;
+      min-width: 104px;
+      padding: 9px 12px;
+      font-size: 0.79rem;
     }
 
     .tone-good {
-      color: var(--good);
-      background: var(--good-soft);
+      color: #88f2cb;
+      background: rgba(57, 208, 161, 0.14);
     }
 
     .tone-warn {
-      color: var(--warn);
-      background: var(--warn-soft);
+      color: #ffd874;
+      background: rgba(245, 193, 75, 0.16);
     }
 
     .tone-bad {
-      color: var(--bad);
-      background: var(--bad-soft);
+      color: #ff9ca5;
+      background: rgba(255, 126, 138, 0.16);
     }
 
     .tone-neutral {
-      color: var(--muted);
-      background: rgba(22, 35, 38, 0.08);
+      color: #c5d3cf;
+      background: rgba(255, 255, 255, 0.08);
     }
 
-    .thresholds {
+    .score-stack,
+    .thresholds,
+    .gap-block {
       display: grid;
       gap: 6px;
-      font-size: 0.84rem;
-      color: var(--muted);
+    }
+
+    .score-stack strong,
+    .gap-block strong {
+      font-size: 1.02rem;
+    }
+
+    .gap-block.positive strong {
+      color: #88f2cb;
+    }
+
+    .gap-block.negative strong {
+      color: #ff9ca5;
     }
 
     .footer-note {
-      margin-top: 14px;
+      margin-top: 0;
       font-size: 0.84rem;
       color: var(--muted);
     }
 
     .empty {
-      padding: 32px 18px;
+      padding: 34px 18px;
       text-align: center;
       color: var(--muted);
     }
 
-    @media (max-width: 1120px) {
-      .layout,
-      .hero {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(143, 199, 185, 0.2);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 1280px) {
+      .hero,
+      .result-layout {
         grid-template-columns: 1fr;
       }
 
-      .stack {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
         position: static;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .topbar,
+      .panel-header--result,
+      .hero-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar,
+      .panel-header--result {
+        display: grid;
+      }
+
+      .topbar-meta,
+      .panel-actions {
+        justify-content: stretch;
+      }
+
+      .signal-grid,
+      .overview-grid,
+      .subject-grid {
+        grid-template-columns: 1fr 1fr;
       }
     }
 
     @media (max-width: 720px) {
       .page {
-        width: min(100% - 18px, 100%);
-        padding-top: 18px;
+        width: min(100% - 16px, 100%);
+        padding-top: 16px;
       }
 
+      .topbar,
+      .hero,
+      .panel,
+      .metric {
+        border-radius: 20px;
+      }
+
+      .topbar,
       .hero,
       .panel {
-        padding: 18px;
-        border-radius: 22px;
+        padding: 16px;
       }
 
+      h1 {
+        font-size: 2.3rem;
+      }
+
+      .signal-grid,
+      .overview-grid,
       .subject-grid,
-      .stats-grid,
-      .toolbar {
-        grid-template-columns: 1fr;
-      }
-
       .inline-fields {
         grid-template-columns: 1fr;
+      }
+
+      .subject-card.wide {
+        grid-column: auto;
       }
 
       thead {
@@ -448,70 +919,104 @@
       }
 
       tbody tr {
-        padding: 12px 0;
+        padding: 10px 0;
       }
 
       tbody td {
-        border-bottom: 0;
         padding: 8px 14px;
+        border-bottom: 0;
+      }
+
+      .result-shell {
+        padding: 6px 0;
       }
     }
   </style>
 </head>
 <body>
   <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">J</div>
+        <div class="brand-copy">
+          <strong>Jeongsi Board</strong>
+          <span>26수능 정시 전용 합격예측 대시보드</span>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="status-chip" id="load-badge">데이터 불러오는 중</span>
+        <span class="status-chip" id="compute-badge">계산 대기</span>
+        <span class="status-chip" id="stamp-chip">원본 기준 시점 로드 대기</span>
+      </div>
+    </header>
+
     <section class="hero">
       <div class="hero-copy">
-        <span class="eyebrow">Direct Calculator</span>
-        <h1>26수능 점수만 넣고 바로 합격예측</h1>
+        <span class="eyebrow">Jeongsi Only</span>
+        <h1>26수능 정시 전략 대시보드</h1>
         <p>
-          엑셀 업로드 없이 직접 점수를 입력하면, 26수능 분석기의 환산식과 지원선을 웹에서 바로 계산합니다.
-          현재 직접 입력 계산은 26수능 데이터셋 기준으로 동작합니다.
+          엑셀 업로드 없이 점수만 직접 입력하면, 26수능 분석기의 환산식과 지원선을 바로 계산합니다.
+          수시 비교나 업로드 절차를 덜어내고 정시 판단에 필요한 화면만 남겼습니다.
         </p>
-        <div class="controls">
-          <span class="badge" id="load-badge">데이터 불러오는 중</span>
-          <span class="chip" id="stamp-chip">엑셀 기준 시점 로드 대기</span>
+        <div class="hero-actions">
+          <button class="primary" id="reset-button" type="button">기본값 복원</button>
+          <p class="hero-note">입력값이 바뀌는 즉시 전체 모집단위가 다시 계산됩니다.</p>
         </div>
-        <div class="hero-grid">
-          <article class="stat-card">
-            <strong>실시간 계산</strong>
-            <p>입력값이 바뀌면 업로드 없이 결과표를 즉시 다시 계산합니다.</p>
+        <div class="signal-grid">
+          <article class="signal-card">
+            <strong>실시간 환산점수</strong>
+            <p>과목 선택과 점수를 바꾸면 정시 결과표가 즉시 다시 계산됩니다.</p>
           </article>
-          <article class="stat-card">
-            <strong>원본 지원선 사용</strong>
-            <p>적정, 예상, 소신 기준점은 원본 분석기 결과 시트 기준입니다.</p>
+          <article class="signal-card">
+            <strong>정시 전용 보드</strong>
+            <p>정시 이과 / 문과 결과와 지원선 판단만 빠르게 확인하도록 정리했습니다.</p>
           </article>
-          <article class="stat-card">
-            <strong>내신 직접 반영</strong>
-            <p>대학별 내신점수 기본값을 유지하거나 필요한 항목만 수정할 수 있습니다.</p>
+          <article class="signal-card">
+            <strong>내신 보정 반영</strong>
+            <p>필요한 대학만 내신 보정값을 손봐서 학교별 변동도 바로 확인할 수 있습니다.</p>
           </article>
         </div>
       </div>
-      <div class="detail-card">
-        <strong>사용 방법</strong>
-        <p>1. 국어, 수학, 탐구 과목과 점수를 입력합니다.</p>
-        <p>2. 영어, 한국사, 제2외국어 등급을 입력합니다.</p>
-        <p>3. 필요하면 내신점수를 조정합니다.</p>
-        <p>4. 이과 / 문과 결과표에서 환산점수와 지원 가능성을 바로 확인합니다.</p>
+
+      <div class="hero-side">
+        <article class="hero-card">
+          <div class="hero-card-header">
+            <div>
+              <span class="kicker">Current Profile</span>
+              <h2>입력 스냅샷</h2>
+            </div>
+          </div>
+          <div class="summary-chips" id="input-summary"></div>
+        </article>
+
+        <article class="hero-card">
+          <div class="hero-card-header">
+            <div>
+              <span class="kicker">Strategy Spotlight</span>
+              <h2>상단 추천</h2>
+            </div>
+          </div>
+          <div id="spotlight"></div>
+        </article>
       </div>
     </section>
 
-    <section class="layout">
-      <aside class="stack">
+    <section class="dashboard-layout">
+      <aside class="sidebar">
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2>수능 입력</h2>
-              <p>선택과목과 점수를 입력하면 계산이 즉시 반영됩니다.</p>
+              <span class="kicker">Input Deck</span>
+              <h2>정시 입력 패널</h2>
+              <p>선택 과목과 점수를 입력하면 정시 환산 결과가 즉시 반영됩니다.</p>
             </div>
-            <button class="secondary" id="reset-button" type="button">샘플값 복원</button>
           </div>
           <div class="subject-grid">
             <article class="subject-card">
               <strong>국어</strong>
               <div class="inline-fields">
                 <div class="field">
-                  <label for="korean-subject">선택과목</label>
+                  <label for="korean-subject">선택 과목</label>
                   <select id="korean-subject"></select>
                 </div>
                 <div class="field">
@@ -520,11 +1025,12 @@
                 </div>
               </div>
             </article>
+
             <article class="subject-card">
               <strong>수학</strong>
               <div class="inline-fields">
                 <div class="field">
-                  <label for="math-subject">선택과목</label>
+                  <label for="math-subject">선택 과목</label>
                   <select id="math-subject"></select>
                 </div>
                 <div class="field">
@@ -533,6 +1039,7 @@
                 </div>
               </div>
             </article>
+
             <article class="subject-card">
               <strong>영어</strong>
               <div class="field">
@@ -540,6 +1047,7 @@
                 <input id="english-grade" type="number" min="1" max="9" step="1">
               </div>
             </article>
+
             <article class="subject-card">
               <strong>한국사</strong>
               <div class="field">
@@ -547,6 +1055,7 @@
                 <input id="history-grade" type="number" min="1" max="9" step="1">
               </div>
             </article>
+
             <article class="subject-card wide">
               <strong>탐구 1</strong>
               <div class="inline-fields">
@@ -560,6 +1069,7 @@
                 </div>
               </div>
             </article>
+
             <article class="subject-card wide">
               <strong>탐구 2</strong>
               <div class="inline-fields">
@@ -573,6 +1083,7 @@
                 </div>
               </div>
             </article>
+
             <article class="subject-card wide">
               <strong>제2외국어 / 한문</strong>
               <div class="inline-fields">
@@ -592,71 +1103,85 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2>내신 입력</h2>
-              <p>기본값으로 계산되며, 필요한 대학만 직접 수정하면 됩니다.</p>
+              <span class="kicker">School Modifier</span>
+              <h2>대학별 내신 보정</h2>
+              <p>기본값으로 계산하고, 필요한 학교만 직접 수정해서 반영할 수 있습니다.</p>
             </div>
           </div>
           <div class="school-grid" id="school-grid"></div>
         </section>
       </aside>
 
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>계산 결과</h2>
-            <p id="result-caption">데이터 로드 후 결과를 표시합니다.</p>
-          </div>
-          <div class="controls">
-            <span class="badge" id="compute-badge">계산 대기</span>
-          </div>
-        </div>
-
-        <div class="stats-grid" id="stats-grid">
-          <div class="metric">
+      <section class="content">
+        <section class="overview-grid">
+          <article class="metric metric--primary">
             <span>총 모집단위</span>
             <strong id="metric-total">-</strong>
-          </div>
-          <div class="metric">
+          </article>
+          <article class="metric metric--good">
             <span>적정권</span>
             <strong id="metric-good">-</strong>
-          </div>
-          <div class="metric">
+          </article>
+          <article class="metric metric--mid">
             <span>예상권</span>
             <strong id="metric-mid">-</strong>
-          </div>
-          <div class="metric">
-            <span>소신 이하</span>
+          </article>
+          <article class="metric metric--low">
+            <span>상향 / 제외</span>
             <strong id="metric-low">-</strong>
-          </div>
-        </div>
+          </article>
+        </section>
 
-        <div class="toolbar">
-          <div class="tab-row" id="track-tabs">
-            <button class="tab is-active" data-track="이과" type="button">이과</button>
-            <button class="tab" data-track="문과" type="button">문과</button>
+        <section class="panel result-panel">
+          <div class="panel-header panel-header--result">
+            <div>
+              <span class="kicker">Admission Radar</span>
+              <h2>정시 결과 보드</h2>
+              <p id="result-caption">데이터 로드 후 결과를 표시합니다.</p>
+            </div>
+            <div class="panel-actions">
+              <div class="tab-row" id="track-tabs">
+                <button class="tab is-active" data-track="이과" type="button">이과</button>
+                <button class="tab" data-track="문과" type="button">문과</button>
+              </div>
+              <label class="search-wrap" for="search-input">
+                <input id="search-input" type="search" placeholder="대학 또는 모집단위 검색">
+              </label>
+            </div>
           </div>
-          <div class="search-box">
-            <input id="search-input" type="search" placeholder="대학교 또는 전공 검색">
-          </div>
-        </div>
 
-        <div class="result-shell">
-          <table>
-            <thead>
-              <tr>
-                <th>모집단위</th>
-                <th>합격가능성</th>
-                <th>내 점수</th>
-                <th>지원선</th>
-              </tr>
-            </thead>
-            <tbody id="result-body"></tbody>
-          </table>
-        </div>
-        <p class="footer-note">
-          직접 입력 모드에서는 원본 분석기의 지원선과 환산식을 사용해 점수와 합격가능성을 계산합니다.
-          현재 누백/전국등수 표시는 제외했습니다.
-        </p>
+          <div class="result-layout">
+            <aside class="watch-panel">
+              <div class="watch-panel-header">
+                <div>
+                  <span class="kicker">Watchlist</span>
+                  <h3>빠른 후보군</h3>
+                </div>
+              </div>
+              <div class="watchlist" id="watchlist"></div>
+            </aside>
+
+            <div class="result-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>모집단위</th>
+                    <th>판단</th>
+                    <th>현재 총점</th>
+                    <th>기준선</th>
+                    <th>라인 격차</th>
+                  </tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <p class="footer-note">
+            26수능 원본 분석기의 환산식과 지원선을 기반으로 정시 결과를 재계산합니다.
+            현재 화면은 정시 전용이며, 수시 판단이나 업로드 비교 흐름은 포함하지 않습니다.
+          </p>
+        </section>
       </section>
     </section>
   </main>

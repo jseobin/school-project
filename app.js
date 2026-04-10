@@ -24,6 +24,9 @@ const elements = {
   loadBadge: document.getElementById("load-badge"),
   stampChip: document.getElementById("stamp-chip"),
   resetButton: document.getElementById("reset-button"),
+  inputSummary: document.getElementById("input-summary"),
+  spotlight: document.getElementById("spotlight"),
+  watchlist: document.getElementById("watchlist"),
   schoolGrid: document.getElementById("school-grid"),
   koreanSubject: document.getElementById("korean-subject"),
   koreanScore: document.getElementById("korean-score"),
@@ -69,6 +72,18 @@ function formatNumber(value) {
   return numberFormatter.format(value);
 }
 
+function formatSignedNumber(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "-";
+  }
+
+  if (value === 0) {
+    return "0";
+  }
+
+  return `${value > 0 ? "+" : "-"}${numberFormatter.format(Math.abs(value))}`;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -83,6 +98,27 @@ function updateLoadBadge(text) {
 
 function setComputeBadge(text) {
   elements.computeBadge.textContent = text;
+}
+
+function getLineGapInfo(row) {
+  if (row.totalScore >= row.properScore) {
+    return {
+      label: "적정선 대비",
+      delta: row.totalScore - row.properScore
+    };
+  }
+
+  if (row.totalScore >= row.expectedScore) {
+    return {
+      label: "예상선 대비",
+      delta: row.totalScore - row.expectedScore
+    };
+  }
+
+  return {
+    label: "상향선 대비",
+    delta: row.totalScore - row.hopefulScore
+  };
 }
 
 function fillSelect(select, options, selectedValue) {
@@ -1371,7 +1407,7 @@ function runAnalysis() {
   } catch (error) {
     console.error(error);
     setComputeBadge("계산 실패");
-    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">계산 중 오류가 발생했습니다. 입력값을 확인해 주세요.</td></tr>`;
+    elements.resultBody.innerHTML = `<tr><td colspan="5" class="empty">계산 중 오류가 발생했습니다. 입력값을 확인해 주세요.</td></tr>`;
   }
 }
 
@@ -1416,18 +1452,115 @@ function renderStats(rows) {
   elements.metricLow.textContent = formatNumber(counts.low);
 }
 
+function renderInputSummary() {
+  if (!elements.inputSummary || !state.inputDraft) {
+    return;
+  }
+
+  const draft = state.inputDraft;
+  const chips = [
+    { label: "국어", value: `${draft.koreanSubject || "미선택"} ${formatNumber(draft.koreanScore)}` },
+    { label: "수학", value: `${draft.mathSubject || "미선택"} ${formatNumber(draft.mathScore)}` },
+    { label: "영어", value: `${formatNumber(draft.englishGrade)}등급` },
+    { label: "한국사", value: `${formatNumber(draft.historyGrade)}등급` },
+    { label: "탐구 1", value: `${draft.inquiryOneSubject || "미선택"} ${formatNumber(draft.inquiryOneScore)}` },
+    { label: "탐구 2", value: `${draft.inquiryTwoSubject || "미선택"} ${formatNumber(draft.inquiryTwoScore)}` },
+    { label: "제2외국어", value: `${draft.foreignSubject || "미선택"} ${formatNumber(draft.foreignGrade)}` }
+  ];
+
+  elements.inputSummary.innerHTML = chips.map((chip) => `
+    <div class="summary-chip">
+      <span>${escapeHtml(chip.label)}</span>
+      <strong>${escapeHtml(chip.value)}</strong>
+    </div>
+  `).join("");
+}
+
+function renderSpotlight(rows) {
+  if (!elements.spotlight) {
+    return;
+  }
+
+  const row = rows[0];
+  if (!row) {
+    elements.spotlight.innerHTML = `<div class="spotlight-card"><p>검색 결과가 없습니다.</p></div>`;
+    return;
+  }
+
+  const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
+  const gapInfo = getLineGapInfo(row);
+
+  elements.spotlight.innerHTML = `
+    <article class="spotlight-card">
+      <div class="spotlight-head">
+        <span class="status-pill ${tone}">${escapeHtml(row.status)}</span>
+        <h3>${escapeHtml(row.university)}</h3>
+        <p>${escapeHtml(row.major)}</p>
+      </div>
+      <div class="spotlight-score-grid">
+        <div class="spotlight-metric">
+          <span>현재 총점</span>
+          <strong>${formatNumber(row.totalScore)}</strong>
+        </div>
+        <div class="spotlight-metric">
+          <span>${escapeHtml(gapInfo.label)}</span>
+          <strong>${formatSignedNumber(gapInfo.delta)}</strong>
+        </div>
+      </div>
+      <p>수능 ${formatNumber(row.examScore)} · 내신 ${formatNumber(row.schoolScore)} · 적정선 ${formatNumber(row.properScore)}</p>
+    </article>
+  `;
+}
+
+function renderWatchlist(rows) {
+  if (!elements.watchlist) {
+    return;
+  }
+
+  if (!rows.length) {
+    elements.watchlist.innerHTML = `<div class="watch-item"><p>표시할 후보군이 없습니다.</p></div>`;
+    return;
+  }
+
+  elements.watchlist.innerHTML = rows.slice(0, 5).map((row) => {
+    const gapInfo = getLineGapInfo(row);
+    const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
+
+    return `
+      <article class="watch-item">
+        <div class="watch-item-head">
+          <div class="program">
+            <strong>${escapeHtml(row.university)}</strong>
+            <small>${escapeHtml(row.major)}</small>
+          </div>
+          <span class="status-pill ${tone}">${escapeHtml(row.status)}</span>
+        </div>
+        <div class="watch-item-metrics">
+          <span>총점 ${formatNumber(row.totalScore)}</span>
+          <span>${escapeHtml(gapInfo.label)} ${formatSignedNumber(gapInfo.delta)}</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderResults() {
   const rows = getActiveRows();
   renderStats(rows);
-  elements.resultCaption.textContent = `${state.track} 기준 ${formatNumber(rows.length)}개 모집단위를 계산했습니다.`;
+  renderInputSummary();
+  renderSpotlight(rows);
+  renderWatchlist(rows);
+  elements.resultCaption.textContent = `정시 ${state.track} 기준 ${formatNumber(rows.length)}개 모집단위를 실시간 계산했습니다.`;
 
   if (!rows.length) {
-    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">검색 결과가 없습니다.</td></tr>`;
+    elements.resultBody.innerHTML = `<tr><td colspan="5" class="empty">검색 결과가 없습니다.</td></tr>`;
     return;
   }
 
   elements.resultBody.innerHTML = rows.map((row) => {
     const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
+    const gapInfo = getLineGapInfo(row);
+    const gapTone = gapInfo.delta >= 0 ? "positive" : "negative";
     return `
       <tr>
         <td>
@@ -1438,7 +1571,7 @@ function renderResults() {
         </td>
         <td><span class="status-pill ${tone}">${escapeHtml(row.status)}</span></td>
         <td>
-          <div class="thresholds">
+          <div class="score-stack">
             <span>수능 ${formatNumber(row.examScore)}</span>
             <span>내신 ${formatNumber(row.schoolScore)}</span>
             <strong>${formatNumber(row.totalScore)}</strong>
@@ -1449,6 +1582,12 @@ function renderResults() {
             <span>적정 ${formatNumber(row.properScore)}</span>
             <span>예상 ${formatNumber(row.expectedScore)}</span>
             <span>소신 ${formatNumber(row.hopefulScore)}</span>
+          </div>
+        </td>
+        <td>
+          <div class="gap-block ${gapTone}">
+            <span class="gap-label">${escapeHtml(gapInfo.label)}</span>
+            <strong>${formatSignedNumber(gapInfo.delta)}</strong>
           </div>
         </td>
       </tr>
@@ -1542,7 +1681,7 @@ async function bootstrap() {
     console.error(error);
     updateLoadBadge("데이터 로드 실패");
     setComputeBadge("계산 불가");
-    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">분석기 데이터를 불러오지 못했습니다.</td></tr>`;
+    elements.resultBody.innerHTML = `<tr><td colspan="5" class="empty">분석기 데이터를 불러오지 못했습니다.</td></tr>`;
   }
 }
 
