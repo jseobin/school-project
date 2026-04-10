@@ -389,6 +389,13 @@
       gap: 10px;
     }
 
+    .save-status {
+      margin: -2px 0 14px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
     button {
       border: 0;
       font: inherit;
@@ -551,7 +558,7 @@
     }
 
     .search-grid {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1fr) auto;
       align-items: end;
     }
 
@@ -874,9 +881,13 @@
                 <p>국어, 수학, 영어, 한국사, 탐구, 제2외국어 입력을 이 패널에서 바로 수정합니다.</p>
               </div>
               <div class="panel-tools">
-                <button class="primary-button" id="reset-button" type="button">기본값 복원</button>
+                <button class="primary-button" id="save-score-button" type="button">내 점수 저장</button>
+                <button class="ghost-button" id="load-saved-score-button" type="button">저장 불러오기</button>
+                <button class="ghost-button" id="reset-button" type="button">기본값 복원</button>
+                <button class="ghost-button" id="clear-saved-score-button" type="button">저장 삭제</button>
               </div>
             </div>
+            <p class="save-status" id="saved-score-status">저장된 점수 없음</p>
 
             <div class="subject-grid">
               <article class="subject-card">
@@ -993,8 +1004,14 @@
           <div class="search-card">
             <div class="search-grid">
               <label for="university-search">
-                대학 검색
-                <input id="university-search" type="search" placeholder="예: 연세대, 가천대학교">
+                대학 후보 검색
+                <input id="university-search" type="search" placeholder="예: 서울, 연세, 가천">
+              </label>
+              <label for="university-select">
+                대학 선택
+                <select id="university-select">
+                  <option value="">대학 전체</option>
+                </select>
               </label>
               <label for="major-search">
                 학과 검색
@@ -1002,7 +1019,7 @@
               </label>
               <button class="ghost-button" id="clear-search-button" type="button">검색 초기화</button>
             </div>
-            <p class="filter-summary" id="filter-summary">대학명과 학과명을 따로 입력하면 원하는 모집단위를 더 빠르게 좁힐 수 있습니다.</p>
+            <p class="filter-summary" id="filter-summary">대학은 후보 검색 후 정확한 대학명을 선택하고, 학과는 텍스트로 바로 좁힐 수 있습니다.</p>
           </div>
 
           <div class="table-shell">

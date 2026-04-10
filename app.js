@@ -20,10 +20,16 @@ const numberFormatter = new Intl.NumberFormat("ko-KR", {
   maximumFractionDigits: 3
 });
 
+const SCORE_SNAPSHOT_KEY = "jeongsi-board:saved-scores:v1";
+
 const elements = {
   loadBadge: document.getElementById("load-badge"),
   stampChip: document.getElementById("stamp-chip"),
   resetButton: document.getElementById("reset-button"),
+  saveScoreButton: document.getElementById("save-score-button"),
+  loadSavedScoreButton: document.getElementById("load-saved-score-button"),
+  clearSavedScoreButton: document.getElementById("clear-saved-score-button"),
+  savedScoreStatus: document.getElementById("saved-score-status"),
   schoolGrid: document.getElementById("school-grid"),
   koreanSubject: document.getElementById("korean-subject"),
   koreanScore: document.getElementById("korean-score"),
@@ -41,6 +47,7 @@ const elements = {
   resultCaption: document.getElementById("result-caption"),
   trackTabs: document.getElementById("track-tabs"),
   universitySearch: document.getElementById("university-search"),
+  universitySelect: document.getElementById("university-select"),
   majorSearch: document.getElementById("major-search"),
   clearSearchButton: document.getElementById("clear-search-button"),
   filterSummary: document.getElementById("filter-summary"),
@@ -61,7 +68,8 @@ const state = {
   schoolValues: new Map(),
   track: "이과",
   filters: {
-    university: "",
+    universityQuery: "",
+    universitySelected: "",
     major: ""
   },
   lastResults: [],
@@ -112,6 +120,127 @@ function includesAllTerms(text, query) {
   }
 
   return terms.every((term) => normalizedText.includes(term));
+}
+
+function getStorage() {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function formatSavedAt(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("ko-KR", {
+      dateStyle: "short",
+      timeStyle: "short"
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function setSavedScoreStatus(text) {
+  if (elements.savedScoreStatus) {
+    elements.savedScoreStatus.textContent = text;
+  }
+}
+
+function readSavedSnapshot() {
+  const storage = getStorage();
+  if (!storage) {
+    return null;
+  }
+
+  try {
+    const raw = storage.getItem(SCORE_SNAPSHOT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function serializeCurrentSnapshot() {
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    inputDraft: { ...state.inputDraft },
+    schoolValues: Object.fromEntries(buildSchoolValueMap())
+  };
+}
+
+function applySavedSnapshot(snapshot) {
+  if (!snapshot || !snapshot.inputDraft) {
+    return false;
+  }
+
+  state.inputDraft = {
+    ...buildDefaultInputDraft(),
+    ...snapshot.inputDraft
+  };
+
+  state.schoolValues = new Map();
+  state.data.schoolRows.forEach((row) => {
+    const savedValue = snapshot.schoolValues?.[row.formulaCode];
+    state.schoolValues.set(row.formulaCode, savedValue ?? row.finalValue ?? 0);
+  });
+
+  return true;
+}
+
+function saveCurrentSnapshot() {
+  const storage = getStorage();
+  if (!storage) {
+    setSavedScoreStatus("이 브라우저에서는 점수 저장을 사용할 수 없습니다.");
+    return;
+  }
+
+  syncDraftFromControls();
+
+  try {
+    const snapshot = serializeCurrentSnapshot();
+    storage.setItem(SCORE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    setSavedScoreStatus(`내 점수 저장됨 · ${formatSavedAt(snapshot.savedAt)}`);
+  } catch {
+    setSavedScoreStatus("점수 저장에 실패했습니다.");
+  }
+}
+
+function restoreSavedSnapshot({ silent = false } = {}) {
+  const snapshot = readSavedSnapshot();
+
+  if (!snapshot) {
+    if (!silent) {
+      setSavedScoreStatus("저장된 점수가 없습니다.");
+    } else {
+      setSavedScoreStatus("저장된 점수 없음");
+    }
+    return false;
+  }
+
+  if (!applySavedSnapshot(snapshot)) {
+    setSavedScoreStatus("저장된 점수를 불러오지 못했습니다.");
+    return false;
+  }
+
+  setSavedScoreStatus(`저장된 점수 적용됨 · ${formatSavedAt(snapshot.savedAt)}`);
+  return true;
+}
+
+function clearSavedSnapshot() {
+  const storage = getStorage();
+  if (!storage) {
+    setSavedScoreStatus("이 브라우저에서는 점수 저장을 사용할 수 없습니다.");
+    return;
+  }
+
+  storage.removeItem(SCORE_SNAPSHOT_KEY);
+  setSavedScoreStatus("저장된 점수를 삭제했습니다.");
 }
 
 function updateLoadBadge(text) {
@@ -1434,11 +1563,12 @@ function runAnalysis() {
 }
 
 function getActiveRows() {
-  const rows = state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
-  const { university, major } = state.filters;
+  const rows = getCurrentTrackRows();
+  const { universitySelected, major } = state.filters;
 
   const filtered = rows.filter((row) => {
-    return includesAllTerms(row.university, university) && includesAllTerms(row.major, major);
+    return (!universitySelected || row.university === universitySelected)
+      && includesAllTerms(row.major, major);
   });
 
   filtered.sort((left, right) => {
@@ -1450,6 +1580,43 @@ function getActiveRows() {
   });
 
   return filtered;
+}
+
+function getCurrentTrackRows() {
+  return state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
+}
+
+function getUniversityCandidates(rows) {
+  const { universityQuery } = state.filters;
+  return [...new Set(rows.map((row) => row.university).filter(Boolean))]
+    .filter((name) => includesAllTerms(name, universityQuery))
+    .sort((left, right) => left.localeCompare(right, "ko"));
+}
+
+function renderUniversityOptions(rows) {
+  if (!elements.universitySelect) {
+    return [];
+  }
+
+  const candidates = getUniversityCandidates(rows);
+
+  if (state.filters.universitySelected && !candidates.includes(state.filters.universitySelected)) {
+    state.filters.universitySelected = "";
+  }
+
+  const defaultLabel = candidates.length
+    ? `대학 전체 (${candidates.length}개 후보)`
+    : "일치하는 대학 없음";
+
+  elements.universitySelect.innerHTML = [
+    `<option value="">${escapeHtml(defaultLabel)}</option>`,
+    ...candidates.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+  ].join("");
+
+  elements.universitySelect.disabled = candidates.length === 0;
+  elements.universitySelect.value = state.filters.universitySelected;
+
+  return candidates;
 }
 
 function renderStats(rows, totalRows) {
@@ -1473,12 +1640,17 @@ function renderStats(rows, totalRows) {
 }
 
 function renderResults() {
-  const totalRows = state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
+  const totalRows = getCurrentTrackRows();
+  const universityCandidates = renderUniversityOptions(totalRows);
   const rows = getActiveRows();
   renderStats(rows, totalRows);
 
   if (elements.filterSummary) {
-    const universityLabel = state.filters.university ? `대학: ${state.filters.university}` : "대학: 전체";
+    const universityLabel = state.filters.universitySelected
+      ? `대학: ${state.filters.universitySelected}`
+      : state.filters.universityQuery
+        ? `대학 후보: ${formatNumber(universityCandidates.length)}개 (선택 필요)`
+        : "대학: 전체";
     const majorLabel = state.filters.major ? `학과: ${state.filters.major}` : "학과: 전체";
     elements.filterSummary.textContent = `${universityLabel} · ${majorLabel} · 현재 ${formatNumber(rows.length)}개 결과`;
   }
@@ -1553,6 +1725,21 @@ function bindEvents() {
     runAnalysis();
   });
 
+  elements.saveScoreButton.addEventListener("click", () => {
+    saveCurrentSnapshot();
+  });
+
+  elements.loadSavedScoreButton.addEventListener("click", () => {
+    if (restoreSavedSnapshot()) {
+      initFormControls();
+      runAnalysis();
+    }
+  });
+
+  elements.clearSavedScoreButton.addEventListener("click", () => {
+    clearSavedSnapshot();
+  });
+
   elements.trackTabs.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-track]");
     if (!button) {
@@ -1566,21 +1753,28 @@ function bindEvents() {
     renderResults();
   });
 
-  [elements.universitySearch, elements.majorSearch].forEach((element) => {
-    element.addEventListener("input", () => {
-      state.filters = {
-        university: elements.universitySearch.value.trim(),
-        major: elements.majorSearch.value.trim()
-      };
-      renderResults();
-    });
+  elements.universitySearch.addEventListener("input", () => {
+    state.filters.universityQuery = elements.universitySearch.value.trim();
+    renderResults();
+  });
+
+  elements.universitySelect.addEventListener("change", () => {
+    state.filters.universitySelected = elements.universitySelect.value;
+    renderResults();
+  });
+
+  elements.majorSearch.addEventListener("input", () => {
+    state.filters.major = elements.majorSearch.value.trim();
+    renderResults();
   });
 
   elements.clearSearchButton.addEventListener("click", () => {
     elements.universitySearch.value = "";
+    elements.universitySelect.value = "";
     elements.majorSearch.value = "";
     state.filters = {
-      university: "",
+      universityQuery: "",
+      universitySelected: "",
       major: ""
     };
     renderResults();
@@ -1615,6 +1809,7 @@ async function loadData() {
     state.schoolValues.set(row.formulaCode, row.finalValue ?? 0);
   });
   state.inputDraft = buildDefaultInputDraft();
+  restoreSavedSnapshot({ silent: true });
   updateLoadBadge("26수능 데이터 로드 완료");
   elements.stampChip.textContent = state.data.workbookStamp || "원본 엑셀 기준 시점";
 }
