@@ -1,5 +1,12 @@
 {
+  "name": "school-project",
+  "private": true,
+  "scripts": {
+    "extract:26": "node scripts/extract-26-data.js",
+    "preview": "wrangler pages dev ."
+  },
   "dependencies": {
+    "hyperformula": "^3.2.0",
     "xlsx": "^0.18.5"
   }
 }

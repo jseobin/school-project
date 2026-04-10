@@ -1,26 +1,27 @@
 # school-project
 
-Web viewer for the 25/26 college admission Excel analyzers.
+Cloudflare Pages app for the 26수능 합격예측 분석기 웹 버전.
 
 ## What it does
 
-- Upload a filled `25수능` or `26수능` analyzer workbook
-- Parse the workbook in the browser with SheetJS
-- Show the result sheets as a searchable, filterable web UI
-- Compare matched programs between the 25 and 26 analyzers when both files are loaded
+- Enter scores directly in the browser without uploading Excel
+- Reproduce the 26수능 analyzer formulas from extracted workbook data
+- Recalculate results immediately as inputs change
+- Browse 이과 / 문과 모집단위를 검색하고 상태별로 확인
 
 ## Current flow
 
-1. Open the original analyzer in Excel or the Excel mobile app
-2. Enter scores and save the file
-3. Upload the saved workbook to this web app
-4. Browse `이과` / `문과` results, inspect thresholds, and compare years
+1. Open the deployed web app
+2. 국어, 수학, 영어, 한국사, 탐구, 제2외국어 점수를 직접 입력
+3. 필요하면 대학별 내신 보정값을 조정
+4. 결과 표에서 지원 가능 상태와 기준 점수를 바로 확인
 
 ## Important files
 
-- `index.html`: analyzer web UI
-- `app.js`: workbook parser, filters, result explorer, compare view
-- `vendor/xlsx.full.min.js`: browser bundle used to read `.xlsx` and `.xlsb`
+- `index.html`: direct-input analyzer UI
+- `app.js`: formula parser, evaluator, UI binding, result renderer
+- `data/analyzer-26.json`: extracted 26수능 workbook data used at runtime
+- `scripts/extract-26-data.js`: extractor that rebuilds `data/analyzer-26.json`
 - `wrangler.toml`: Cloudflare Pages configuration
 
 ## Local preview
@@ -29,5 +30,5 @@ Web viewer for the 25/26 college admission Excel analyzers.
 
 ## Notes
 
-- The app reads the calculated values already stored in the uploaded workbook.
-- It does not modify the original Excel file.
+- The current direct-input calculator is based on the 26수능 workbook.
+- Validation against workbook cached values is effectively matched except for tiny floating-point rounding noise on 2 formulas.

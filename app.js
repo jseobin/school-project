@@ -1,6 +1,3 @@
-const TRACKS = ["이과", "문과"];
-const MAX_RENDERED_ROWS = 300;
-
 const STATUS_PRIORITY = {
   "적정점수 이상": 4,
   "예상점수 이상": 3,
@@ -10,11 +7,13 @@ const STATUS_PRIORITY = {
   "오류(영어국사)": -1
 };
 
-const SHEET_NAMES = {
-  exam: "수능입력",
-  school: "내신입력",
-  science: "이과계열분석결과",
-  humanities: "문과계열분석결과"
+const TONE_BY_STATUS = {
+  "적정점수 이상": "tone-good",
+  "예상점수 이상": "tone-good",
+  "소신점수 이상": "tone-warn",
+  "소신점수 미만": "tone-bad",
+  "제외(수탐결격)": "tone-neutral",
+  "오류(영어국사)": "tone-neutral"
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR", {
@@ -22,44 +21,53 @@ const numberFormatter = new Intl.NumberFormat("ko-KR", {
 });
 
 const elements = {
-  uploadStatus: document.getElementById("upload-status"),
-  fileInput: document.getElementById("workbook-input"),
-  dropzone: document.getElementById("dropzone"),
-  clearButton: document.getElementById("clear-button"),
-  fileList: document.getElementById("file-list"),
-  activeYearBadge: document.getElementById("active-year-badge"),
-  summaryGrid: document.getElementById("summary-grid"),
-  examInputs: document.getElementById("exam-inputs"),
-  schoolInputs: document.getElementById("school-inputs"),
-  comparePanel: document.getElementById("compare-panel"),
-  compareBadge: document.getElementById("compare-badge"),
-  compareGrid: document.getElementById("compare-grid"),
-  compareList: document.getElementById("compare-list"),
+  loadBadge: document.getElementById("load-badge"),
+  stampChip: document.getElementById("stamp-chip"),
+  resetButton: document.getElementById("reset-button"),
+  schoolGrid: document.getElementById("school-grid"),
+  koreanSubject: document.getElementById("korean-subject"),
+  koreanScore: document.getElementById("korean-score"),
+  mathSubject: document.getElementById("math-subject"),
+  mathScore: document.getElementById("math-score"),
+  englishGrade: document.getElementById("english-grade"),
+  historyGrade: document.getElementById("history-grade"),
+  inquiryOneSubject: document.getElementById("inquiry-one-subject"),
+  inquiryOneScore: document.getElementById("inquiry-one-score"),
+  inquiryTwoSubject: document.getElementById("inquiry-two-subject"),
+  inquiryTwoScore: document.getElementById("inquiry-two-score"),
+  foreignSubject: document.getElementById("foreign-subject"),
+  foreignGrade: document.getElementById("foreign-grade"),
+  computeBadge: document.getElementById("compute-badge"),
+  resultCaption: document.getElementById("result-caption"),
   trackTabs: document.getElementById("track-tabs"),
-  yearFilter: document.getElementById("year-filter"),
-  statusFilter: document.getElementById("status-filter"),
-  groupFilter: document.getElementById("group-filter"),
-  regionFilter: document.getElementById("region-filter"),
-  sortFilter: document.getElementById("sort-filter"),
   searchInput: document.getElementById("search-input"),
-  resultCount: document.getElementById("result-count"),
   resultBody: document.getElementById("result-body"),
-  resultFootnote: document.getElementById("result-footnote"),
-  detailBody: document.getElementById("detail-body")
+  metricTotal: document.getElementById("metric-total"),
+  metricGood: document.getElementById("metric-good"),
+  metricMid: document.getElementById("metric-mid"),
+  metricLow: document.getElementById("metric-low")
 };
 
 const state = {
-  analyses: new Map(),
-  activeYearKey: null,
-  track: TRACKS[0],
-  status: "all",
-  group: "all",
-  region: "all",
-  sort: "status",
+  data: null,
+  compiledColumns: [],
+  compiledRestrictRows: [],
+  subjectMap: new Map(),
+  examBySubject: new Map(),
+  schoolValues: new Map(),
+  track: "이과",
   search: "",
-  filteredRows: [],
-  selectedProgramKey: null
+  lastResults: [],
+  inputDraft: null
 };
+
+function formatNumber(value) {
+  if (value === null || value === undefined || value === "" || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return numberFormatter.format(value);
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -69,938 +77,1473 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function toNumber(value) {
+function updateLoadBadge(text) {
+  elements.loadBadge.textContent = text;
+}
+
+function setComputeBadge(text) {
+  elements.computeBadge.textContent = text;
+}
+
+function fillSelect(select, options, selectedValue) {
+  select.innerHTML = options
+    .map((option) => {
+      const selected = option.value === selectedValue ? " selected" : "";
+      return `<option value="${escapeHtml(option.value)}"${selected}>${escapeHtml(option.label)}</option>`;
+    })
+    .join("");
+
+  if (selectedValue !== undefined && selectedValue !== null) {
+    select.value = selectedValue;
+  }
+}
+
+function buildOptionList(rows, includeBlank = true) {
+  const options = [];
+  if (includeBlank) {
+    options.push({ value: "", label: "선택 안 함" });
+  }
+
+  rows.forEach((row) => {
+    options.push({ value: row.subject, label: row.subject });
+  });
+
+  return options;
+}
+
+function tokenizeFormula(formula) {
+  const source = formula.startsWith("=") ? formula.slice(1) : formula;
+  const tokens = [];
+  let index = 0;
+
+  function push(type, value) {
+    tokens.push({ type, value });
+  }
+
+  while (index < source.length) {
+    const char = source[index];
+
+    if (/\s/.test(char)) {
+      index += 1;
+      continue;
+    }
+
+    if (char === "\"") {
+      let end = index + 1;
+      let value = "";
+      while (end < source.length) {
+        if (source[end] === "\"" && source[end + 1] === "\"") {
+          value += "\"";
+          end += 2;
+          continue;
+        }
+
+        if (source[end] === "\"") {
+          break;
+        }
+
+        value += source[end];
+        end += 1;
+      }
+
+      push("string", value);
+      index = end + 1;
+      continue;
+    }
+
+    if (char === "'") {
+      let end = index + 1;
+      let value = "";
+      while (end < source.length && source[end] !== "'") {
+        value += source[end];
+        end += 1;
+      }
+      push("ident", value);
+      index = end + 1;
+      continue;
+    }
+
+    const twoChar = source.slice(index, index + 2);
+    if (["<=", ">=", "<>"].includes(twoChar)) {
+      push("op", twoChar);
+      index += 2;
+      continue;
+    }
+
+    if ("+-*/(),:!&=<>".includes(char)) {
+      push(char === "," || char === "(" || char === ")" || char === ":" || char === "!" ? "punct" : "op", char);
+      index += 1;
+      continue;
+    }
+
+    const numberMatch = source.slice(index).match(/^\d+(?:\.\d+)?%?/);
+    if (numberMatch) {
+      push("number", numberMatch[0]);
+      index += numberMatch[0].length;
+      continue;
+    }
+
+    const cellMatch = source.slice(index).match(/^\$?[A-Z]{1,3}\$?\d+/);
+    if (cellMatch) {
+      push("cell", cellMatch[0]);
+      index += cellMatch[0].length;
+      continue;
+    }
+
+    const rowMatch = source.slice(index).match(/^\$?\d+/);
+    if (rowMatch) {
+      push("row", rowMatch[0]);
+      index += rowMatch[0].length;
+      continue;
+    }
+
+    let end = index;
+    while (end < source.length && !/\s/.test(source[end]) && !"+-*/(),:!&=<>".includes(source[end])) {
+      end += 1;
+    }
+    push("ident", source.slice(index, end));
+    index = end;
+  }
+
+  return tokens;
+}
+
+function parseCellRef(raw) {
+  const match = raw.match(/^\$?([A-Z]{1,3})\$?(\d+)$/);
+  if (!match) {
+    throw new Error(`Invalid cell reference: ${raw}`);
+  }
+
+  return { column: match[1], row: Number(match[2]) };
+}
+
+function parseFormula(formula) {
+  const tokens = tokenizeFormula(formula);
+  let index = 0;
+
+  function peek(offset = 0) {
+    return tokens[index + offset] || null;
+  }
+
+  function consume(expectedValue) {
+    const token = tokens[index];
+    if (!token) {
+      throw new Error(`Unexpected end of formula: ${formula}`);
+    }
+
+    if (expectedValue && token.value !== expectedValue) {
+      throw new Error(`Expected ${expectedValue} but found ${token.value}`);
+    }
+
+    index += 1;
+    return token;
+  }
+
+  function parseExpression() {
+    return parseComparison();
+  }
+
+  function parseComparison() {
+    let node = parseConcat();
+    while (peek() && ["=", "<>", "<", ">", "<=", ">="].includes(peek().value)) {
+      const operator = consume().value;
+      const right = parseConcat();
+      node = { type: "binary", operator, left: node, right };
+    }
+    return node;
+  }
+
+  function parseConcat() {
+    let node = parseAddSub();
+    while (peek() && peek().value === "&") {
+      consume("&");
+      node = {
+        type: "binary",
+        operator: "&",
+        left: node,
+        right: parseAddSub()
+      };
+    }
+    return node;
+  }
+
+  function parseAddSub() {
+    let node = parseMulDiv();
+    while (peek() && ["+", "-"].includes(peek().value)) {
+      const operator = consume().value;
+      const right = parseMulDiv();
+      node = { type: "binary", operator, left: node, right };
+    }
+    return node;
+  }
+
+  function parseMulDiv() {
+    let node = parseUnary();
+    while (peek() && ["*", "/"].includes(peek().value)) {
+      const operator = consume().value;
+      const right = parseUnary();
+      node = { type: "binary", operator, left: node, right };
+    }
+    return node;
+  }
+
+  function parseUnary() {
+    if (peek() && ["+", "-"].includes(peek().value)) {
+      const operator = consume().value;
+      return { type: "unary", operator, argument: parseUnary() };
+    }
+    return parsePrimary();
+  }
+
+  function parseReferenceOrFunction(token, forcedSheet = null) {
+    if (token.type === "ident" && peek() && peek().value === "(") {
+      consume("(");
+      const args = [];
+      if (!peek() || peek().value !== ")") {
+        while (true) {
+          args.push(parseExpression());
+          if (!peek() || peek().value !== ",") {
+            break;
+          }
+          consume(",");
+        }
+      }
+      consume(")");
+      return { type: "call", name: token.value.toUpperCase(), args };
+    }
+
+    let sheetName = forcedSheet;
+    let refToken = token;
+
+    if (!sheetName && (token.type === "ident" || token.type === "cell" || token.type === "row") && peek() && peek().value === "!") {
+      sheetName = token.value;
+      consume("!");
+      refToken = consume();
+    }
+
+    if (refToken.type === "cell") {
+      const start = parseCellRef(refToken.value);
+      if (peek() && peek().value === ":") {
+        consume(":");
+        const endToken = consume();
+        const end = parseCellRef(endToken.value);
+        return { type: "range", sheet: sheetName || null, start, end };
+      }
+      return { type: "ref", sheet: sheetName || null, ...start };
+    }
+
+    if (refToken.type === "row") {
+      const startRow = Number(refToken.value.replaceAll("$", ""));
+      if (peek() && peek().value === ":") {
+        consume(":");
+        const endToken = consume();
+        const endRow = Number(endToken.value.replaceAll("$", ""));
+        return { type: "row-range", sheet: sheetName || null, startRow, endRow };
+      }
+    }
+
+    if (refToken.type === "ident") {
+      if (refToken.value.toUpperCase() === "TRUE") {
+        return { type: "literal", value: true };
+      }
+      if (refToken.value.toUpperCase() === "FALSE") {
+        return { type: "literal", value: false };
+      }
+      return { type: "literal", value: refToken.value };
+    }
+
+    throw new Error(`Unsupported token ${refToken.value}`);
+  }
+
+  function parsePrimary() {
+    const token = consume();
+
+    if (token.type === "number") {
+      return {
+        type: "literal",
+        value: token.value.endsWith("%")
+          ? Number(token.value.slice(0, -1)) / 100
+          : Number(token.value)
+      };
+    }
+
+    if (token.type === "string") {
+      return { type: "literal", value: token.value };
+    }
+
+    if (token.type === "punct" && token.value === "(") {
+      const first = parseExpression();
+      if (peek() && peek().value === ",") {
+        const items = [first];
+        while (peek() && peek().value === ",") {
+          consume(",");
+          items.push(parseExpression());
+        }
+        consume(")");
+        return { type: "list", items };
+      }
+
+      consume(")");
+      return first;
+    }
+
+    if (token.type === "ident" || token.type === "cell" || token.type === "row") {
+      return parseReferenceOrFunction(token);
+    }
+
+    throw new Error(`Unexpected token ${token.value}`);
+  }
+
+  const ast = parseExpression();
+  if (index !== tokens.length) {
+    throw new Error(`Unexpected trailing tokens in formula: ${formula}`);
+  }
+  return ast;
+}
+
+function compileFormulaObject(rows) {
+  const compiled = {};
+  Object.entries(rows).forEach(([row, cell]) => {
+    compiled[row] = {
+      value: cell.value,
+      formula: cell.formula,
+      ast: cell.formula ? parseFormula(cell.formula) : null
+    };
+  });
+  return compiled;
+}
+
+function columnToNumber(column) {
+  let value = 0;
+  for (let index = 0; index < column.length; index += 1) {
+    value = (value * 26) + (column.charCodeAt(index) - 64);
+  }
+  return value;
+}
+
+function numberToColumn(number) {
+  let value = number;
+  let result = "";
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    result = String.fromCharCode(65 + remainder) + result;
+    value = Math.floor((value - 1) / 26);
+  }
+  return result;
+}
+
+function coerceNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
   if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
+    return value;
   }
 
-  if (typeof value !== "string") {
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+
+  const parsed = Number(String(value).replaceAll(",", "").trim());
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+
+  throw new Error(`Cannot coerce to number: ${value}`);
+}
+
+function isNumericLike(value) {
+  if (typeof value === "number" || typeof value === "boolean") {
+    return true;
+  }
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+  return Number.isFinite(Number(String(value).replaceAll(",", "").trim()));
+}
+
+function compareEqual(left, right) {
+  if (isNumericLike(left) && isNumericLike(right)) {
+    return coerceNumber(left) === coerceNumber(right);
+  }
+  return String(left ?? "") === String(right ?? "");
+}
+
+function flattenValue(value) {
+  if (value && value.type === "range-value") {
+    return value.values.slice();
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => flattenValue(item));
+  }
+
+  return [value];
+}
+
+function makeRangeValue(values, width, height) {
+  return { type: "range-value", values, width, height };
+}
+
+function evaluateCriterion(value, criterion) {
+  if (typeof criterion !== "string") {
+    return compareEqual(value, criterion);
+  }
+
+  const match = criterion.match(/^(>=|<=|<>|>|<|=)(.*)$/);
+  if (!match) {
+    return compareEqual(value, criterion);
+  }
+
+  const [, operator, rightRaw] = match;
+  const right = rightRaw === "" ? "" : Number.isFinite(Number(rightRaw)) ? Number(rightRaw) : rightRaw;
+
+  if (operator === "=") {
+    return compareEqual(value, right);
+  }
+
+  if (operator === "<>") {
+    return !compareEqual(value, right);
+  }
+
+  const leftNumber = coerceNumber(value);
+  const rightNumber = coerceNumber(right);
+
+  if (operator === ">") {
+    return leftNumber > rightNumber;
+  }
+  if (operator === "<") {
+    return leftNumber < rightNumber;
+  }
+  if (operator === ">=") {
+    return leftNumber >= rightNumber;
+  }
+  if (operator === "<=") {
+    return leftNumber <= rightNumber;
+  }
+
+  return false;
+}
+
+function createEvaluator(runtime) {
+  function getComputeStaticColumnValue(row, columnIndex) {
+    const column = runtime.columns[columnIndex];
+    if (row === 1) {
+      return column.title;
+    }
+    if (row === 2) {
+      return column.code;
+    }
     return null;
   }
 
-  const normalized = value.replaceAll(",", "").trim();
-  if (!normalized || normalized === "-") {
-    return null;
+  function getBaseCellValue(column, row) {
+    const base = runtime.baseRows[row] || { A: null, B: null, C: null };
+    if (column === "B" && row >= 9 && row <= 45) {
+      return runtime.rawScores.get(row) ?? "";
+    }
+    return base[column] ?? null;
   }
 
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function formatNumber(value) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "-";
+  function getExamCellValue(column, row) {
+    const rowData = runtime.examSheet[row] || {};
+    return rowData[column] ?? (column === "B" ? "" : 0);
   }
 
-  return numberFormatter.format(value);
-}
-
-function formatDelta(value) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return { text: "-", tone: "neutral" };
+  function getSubject1CellValue(column, row) {
+    const gridRow = runtime.subject1Grid[row - 2];
+    if (!gridRow) {
+      return null;
+    }
+    return gridRow[columnToNumber(column) - 1] ?? null;
   }
 
-  if (value > 0) {
-    return { text: `+${formatNumber(value)}`, tone: "up" };
+  function getSubject2CellValue(column, row) {
+    const gridRow = runtime.subject2Grid[row - 1];
+    if (!gridRow) {
+      return null;
+    }
+    return gridRow[columnToNumber(column) - 1] ?? null;
   }
 
-  if (value < 0) {
-    return { text: formatNumber(value), tone: "down" };
-  }
-
-  return { text: "0", tone: "neutral" };
-}
-
-function calcDelta(left, right) {
-  if (left === null || right === null) {
-    return null;
-  }
-
-  return left - right;
-}
-
-function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function cellAddress(row, column) {
-  return XLSX.utils.encode_cell({ r: row, c: column });
-}
-
-function getCell(sheet, row, column) {
-  return sheet?.[cellAddress(row, column)] || null;
-}
-
-function getCellValue(sheet, address) {
-  return sheet?.[address]?.v ?? null;
-}
-
-function getCellText(sheet, address) {
-  const value = getCellValue(sheet, address);
-  return value === null || value === undefined ? "" : String(value);
-}
-
-function requireSheet(workbook, name) {
-  const sheet = workbook.Sheets[name];
-
-  if (!sheet) {
-    throw new Error(`필수 시트가 없습니다: ${name}`);
-  }
-
-  return sheet;
-}
-
-function detectAnalyzerYear(fileName, workbook) {
-  const clues = [
-    fileName,
-    getCellText(workbook.Sheets.INFO, "A1"),
-    getCellText(workbook.Sheets[SHEET_NAMES.exam], "A1")
-  ].join(" ");
-
-  if (clues.includes("202511") || clues.includes("2026학년도")) {
-    return { key: "26", label: "26수능" };
-  }
-
-  if (clues.includes("202411") || clues.includes("2025학년도")) {
-    return { key: "25", label: "25수능" };
-  }
-
-  return fileName.toLowerCase().endsWith(".xlsb")
-    ? { key: "26", label: "26수능" }
-    : { key: "25", label: "25수능" };
-}
-
-function getAnalyzerStamp(workbook) {
-  const infoSheet = workbook.Sheets.INFO;
-  if (infoSheet && getCellText(infoSheet, "A1")) {
-    return getCellText(infoSheet, "A1");
-  }
-
-  return getCellText(workbook.Sheets[SHEET_NAMES.exam], "A1");
-}
-
-function buildHeaderIndex(headerRow) {
-  const index = {};
-
-  headerRow.forEach((label, position) => {
-    if (label === null || label === undefined) {
-      return;
+  function getComputeCellValue(row, columnIndex) {
+    if (row >= 9 && row <= 45) {
+      return runtime.subjectRows.get(row)?.values[columnIndex] ?? 0;
     }
 
-    const key = String(label).trim();
-    if (!key || key in index) {
-      return;
+    const cached = runtime.memo[row]?.[columnIndex];
+    if (cached !== undefined) {
+      return cached;
     }
 
-    index[key] = position;
+    const visitingKey = `${row}:${columnIndex}`;
+    if (runtime.visiting.has(visitingKey)) {
+      throw new Error(`Circular reference at ${visitingKey}`);
+    }
+    runtime.visiting.add(visitingKey);
+
+    try {
+      const staticValue = getComputeStaticColumnValue(row, columnIndex);
+      if (staticValue !== null) {
+        runtime.memo[row][columnIndex] = staticValue;
+        return staticValue;
+      }
+
+      const cellDef = runtime.columns[columnIndex].compiledRows[row];
+      let value;
+
+      if (!cellDef) {
+        value = null;
+      } else if (row === 4) {
+        const score = coerceNumber(getComputeCellValue(3, columnIndex));
+        value = score === 0
+          ? 0
+          : (runtime.schoolValues.get(runtime.columns[columnIndex].code) ?? 0);
+      } else if (!cellDef.ast) {
+        value = cellDef.value;
+      } else {
+        value = evaluateNode(cellDef.ast, columnIndex);
+      }
+
+      runtime.memo[row][columnIndex] = value;
+      return value;
+    } finally {
+      runtime.visiting.delete(visitingKey);
+    }
+  }
+
+  function getSheetCellValue(sheetName, column, row, currentColumnIndex) {
+    if (!sheetName || sheetName === "COMPUTE" || sheetName === runtime.computeSheetName) {
+      const number = columnToNumber(column);
+      if (number <= 3) {
+        return getBaseCellValue(column, row);
+      }
+      return getComputeCellValue(row, number - 4);
+    }
+
+    if (sheetName === "수능입력") {
+      return getExamCellValue(column, row);
+    }
+
+    if (sheetName === "SUBJECT1") {
+      return getSubject1CellValue(column, row);
+    }
+
+    if (sheetName === "SUBJECT2") {
+      return getSubject2CellValue(column, row);
+    }
+
+    throw new Error(`Unsupported sheet: ${sheetName}`);
+  }
+
+  function getRangeValue(sheetName, start, end, currentColumnIndex) {
+    const values = [];
+    const startColumn = columnToNumber(start.column);
+    const endColumn = columnToNumber(end.column);
+    const width = endColumn - startColumn + 1;
+    const height = end.row - start.row + 1;
+
+    for (let row = start.row; row <= end.row; row += 1) {
+      for (let columnNumber = startColumn; columnNumber <= endColumn; columnNumber += 1) {
+        const column = numberToColumn(columnNumber);
+        values.push(getSheetCellValue(sheetName, column, row, currentColumnIndex));
+      }
+    }
+
+    return makeRangeValue(values, width, height);
+  }
+
+  function getRowRangeValue(sheetName, startRow, endRow, currentColumnIndex) {
+    const lastColumnNumber = 3 + runtime.columns.length;
+    const values = [];
+    const width = lastColumnNumber;
+    const height = endRow - startRow + 1;
+
+    for (let row = startRow; row <= endRow; row += 1) {
+      for (let columnNumber = 1; columnNumber <= lastColumnNumber; columnNumber += 1) {
+        const column = numberToColumn(columnNumber);
+        values.push(getSheetCellValue(sheetName, column, row, currentColumnIndex));
+      }
+    }
+
+    return makeRangeValue(values, width, height);
+  }
+
+  function evaluateNode(node, currentColumnIndex) {
+    if (!node) {
+      return null;
+    }
+
+    if (node.type === "literal") {
+      return node.value;
+    }
+
+    if (node.type === "ref") {
+      return getSheetCellValue(node.sheet, node.column, node.row, currentColumnIndex);
+    }
+
+    if (node.type === "range") {
+      return getRangeValue(node.sheet, node.start, node.end, currentColumnIndex);
+    }
+
+    if (node.type === "row-range") {
+      return getRowRangeValue(node.sheet, node.startRow, node.endRow, currentColumnIndex);
+    }
+
+    if (node.type === "list") {
+      return node.items.map((item) => evaluateNode(item, currentColumnIndex));
+    }
+
+    if (node.type === "unary") {
+      const argument = evaluateNode(node.argument, currentColumnIndex);
+      return node.operator === "-" ? -coerceNumber(argument) : coerceNumber(argument);
+    }
+
+    if (node.type === "binary") {
+      if (node.operator === "&") {
+        return `${evaluateNode(node.left, currentColumnIndex) ?? ""}${evaluateNode(node.right, currentColumnIndex) ?? ""}`;
+      }
+
+      const leftRaw = evaluateNode(node.left, currentColumnIndex);
+      const rightRaw = evaluateNode(node.right, currentColumnIndex);
+
+      if (node.operator === "=") {
+        return compareEqual(leftRaw, rightRaw);
+      }
+      if (node.operator === "<>") {
+        return !compareEqual(leftRaw, rightRaw);
+      }
+      if (node.operator === ">") {
+        return coerceNumber(leftRaw) > coerceNumber(rightRaw);
+      }
+      if (node.operator === "<") {
+        return coerceNumber(leftRaw) < coerceNumber(rightRaw);
+      }
+      if (node.operator === ">=") {
+        return coerceNumber(leftRaw) >= coerceNumber(rightRaw);
+      }
+      if (node.operator === "<=") {
+        return coerceNumber(leftRaw) <= coerceNumber(rightRaw);
+      }
+
+      const left = coerceNumber(leftRaw);
+      const right = coerceNumber(rightRaw);
+
+      if (node.operator === "+") {
+        return left + right;
+      }
+      if (node.operator === "-") {
+        return left - right;
+      }
+      if (node.operator === "*") {
+        return left * right;
+      }
+      if (node.operator === "/") {
+        if (right === 0) {
+          throw new Error("DIV/0");
+        }
+        return left / right;
+      }
+    }
+
+    if (node.type === "call") {
+      const name = node.name;
+
+      if (name === "IF") {
+        return evaluateNode(node.args[0], currentColumnIndex)
+          ? evaluateNode(node.args[1], currentColumnIndex)
+          : evaluateNode(node.args[2], currentColumnIndex);
+      }
+
+      if (name === "IFERROR") {
+        try {
+          return evaluateNode(node.args[0], currentColumnIndex);
+        } catch {
+          return evaluateNode(node.args[1], currentColumnIndex);
+        }
+      }
+
+      if (name === "OR") {
+        return node.args.some((arg) => Boolean(evaluateNode(arg, currentColumnIndex)));
+      }
+
+      if (name === "AND") {
+        return node.args.every((arg) => Boolean(evaluateNode(arg, currentColumnIndex)));
+      }
+
+      if (name === "SUM") {
+        return node.args
+          .flatMap((arg) => flattenValue(evaluateNode(arg, currentColumnIndex)))
+          .reduce((sum, value) => sum + (typeof value === "string" && value !== "" && Number.isNaN(Number(value)) ? 0 : coerceNumber(value)), 0);
+      }
+
+      if (name === "AVERAGE") {
+        const values = node.args.flatMap((arg) => flattenValue(evaluateNode(arg, currentColumnIndex)));
+        const numbers = values.map((value) => coerceNumber(value));
+        return numbers.reduce((sum, value) => sum + value, 0) / (numbers.length || 1);
+      }
+
+      if (name === "MAX") {
+        return Math.max(...node.args.flatMap((arg) => flattenValue(evaluateNode(arg, currentColumnIndex)).map((value) => coerceNumber(value))));
+      }
+
+      if (name === "MIN") {
+        return Math.min(...node.args.flatMap((arg) => flattenValue(evaluateNode(arg, currentColumnIndex)).map((value) => coerceNumber(value))));
+      }
+
+      if (name === "LARGE") {
+        const values = flattenValue(evaluateNode(node.args[0], currentColumnIndex))
+          .map((value) => coerceNumber(value))
+          .sort((left, right) => right - left);
+        const rank = Math.max(1, Math.floor(coerceNumber(evaluateNode(node.args[1], currentColumnIndex))));
+        return values[rank - 1] ?? 0;
+      }
+
+      if (name === "COUNTIFS") {
+        const rangeValues = [];
+        for (let index = 0; index < node.args.length; index += 2) {
+          rangeValues.push(flattenValue(evaluateNode(node.args[index], currentColumnIndex)));
+        }
+        const rowCount = rangeValues[0]?.length || 0;
+        let count = 0;
+
+        for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+          let match = true;
+          for (let index = 0; index < node.args.length; index += 2) {
+            const rangeIndex = index / 2;
+            const criterion = evaluateNode(node.args[index + 1], currentColumnIndex);
+            if (!evaluateCriterion(rangeValues[rangeIndex][rowIndex], criterion)) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            count += 1;
+          }
+        }
+        return count;
+      }
+
+      if (name === "ROUND") {
+        const value = coerceNumber(evaluateNode(node.args[0], currentColumnIndex));
+        const digits = Math.floor(coerceNumber(evaluateNode(node.args[1], currentColumnIndex)));
+        const multiplier = 10 ** digits;
+        return Math.round(value * multiplier) / multiplier;
+      }
+
+      if (name === "FIND") {
+        const needle = String(evaluateNode(node.args[0], currentColumnIndex));
+        const haystack = String(evaluateNode(node.args[1], currentColumnIndex) ?? "");
+        const position = haystack.indexOf(needle);
+        if (position === -1) {
+          throw new Error("FIND");
+        }
+        return position + 1;
+      }
+
+      if (name === "INDEX") {
+        const rowNumber = Math.floor(coerceNumber(evaluateNode(node.args[1], currentColumnIndex)));
+        const columnNumber = node.args[2]
+          ? Math.floor(coerceNumber(evaluateNode(node.args[2], currentColumnIndex)))
+          : 1;
+
+        const rangeNode = node.args[0];
+        if (rangeNode.type === "range") {
+          const targetColumn = numberToColumn(columnToNumber(rangeNode.start.column) + columnNumber - 1);
+          const targetRow = rangeNode.start.row + rowNumber - 1;
+          return getSheetCellValue(rangeNode.sheet, targetColumn, targetRow, currentColumnIndex);
+        }
+
+        if (rangeNode.type === "row-range") {
+          const targetColumn = numberToColumn(columnNumber);
+          const targetRow = rangeNode.startRow + rowNumber - 1;
+          return getSheetCellValue(rangeNode.sheet, targetColumn, targetRow, currentColumnIndex);
+        }
+
+        const range = evaluateNode(rangeNode, currentColumnIndex);
+        const width = range.width || 1;
+        const indexInFlat = ((rowNumber - 1) * width) + (columnNumber - 1);
+        return range.values[indexInFlat];
+      }
+
+      if (name === "MATCH") {
+        const lookup = evaluateNode(node.args[0], currentColumnIndex);
+        const rangeNode = node.args[1];
+        const values = flattenValue(evaluateNode(rangeNode, currentColumnIndex));
+        const matchType = node.args[2]
+          ? coerceNumber(evaluateNode(node.args[2], currentColumnIndex))
+          : 1;
+
+        if (matchType === 0) {
+          const exactIndex = values.findIndex((value) => compareEqual(value, lookup));
+          if (exactIndex === -1) {
+            if (
+              rangeNode.type === "range" &&
+              rangeNode.sheet === "SUBJECT2" &&
+              rangeNode.start.row === 4 &&
+              rangeNode.end.row === 4
+            ) {
+              return 2;
+            }
+            throw new Error("MATCH");
+          }
+          return exactIndex + 1;
+        }
+
+        let matched = -1;
+        for (let valueIndex = 0; valueIndex < values.length; valueIndex += 1) {
+          if (coerceNumber(values[valueIndex]) <= coerceNumber(lookup)) {
+            matched = valueIndex;
+          } else {
+            break;
+          }
+        }
+        if (matched === -1) {
+          throw new Error("MATCH");
+        }
+        return matched + 1;
+      }
+
+      if (name === "POWER") {
+        return Math.pow(
+          coerceNumber(evaluateNode(node.args[0], currentColumnIndex)),
+          coerceNumber(evaluateNode(node.args[1], currentColumnIndex))
+        );
+      }
+
+      if (name === "HLOOKUP") {
+        const lookup = evaluateNode(node.args[0], currentColumnIndex);
+        const rowNumber = Math.floor(coerceNumber(evaluateNode(node.args[2], currentColumnIndex)));
+        const rangeNode = node.args[1];
+
+        if (rangeNode.type === "row-range") {
+          const lastColumnNumber = 3 + runtime.columns.length;
+          let matchedColumn = null;
+          for (let columnNumber = 1; columnNumber <= lastColumnNumber; columnNumber += 1) {
+            const column = numberToColumn(columnNumber);
+            const value = getSheetCellValue(rangeNode.sheet, column, rangeNode.startRow, currentColumnIndex);
+            if (compareEqual(value, lookup)) {
+              matchedColumn = column;
+              break;
+            }
+          }
+          if (!matchedColumn) {
+            throw new Error("HLOOKUP");
+          }
+          return getSheetCellValue(
+            rangeNode.sheet,
+            matchedColumn,
+            rangeNode.startRow + rowNumber - 1,
+            currentColumnIndex
+          );
+        }
+
+        const range = evaluateNode(rangeNode, currentColumnIndex);
+        const width = range.width || 1;
+        const firstRow = range.values.slice(0, width);
+        const matchIndex = firstRow.findIndex((value) => compareEqual(value, lookup));
+        if (matchIndex === -1) {
+          throw new Error("HLOOKUP");
+        }
+        return range.values[((rowNumber - 1) * width) + matchIndex];
+      }
+
+      if (name === "CONCATENATE") {
+        return node.args.map((arg) => evaluateNode(arg, currentColumnIndex) ?? "").join("");
+      }
+
+      throw new Error(`Unsupported function: ${name}`);
+    }
+
+    throw new Error(`Unsupported AST node: ${node.type}`);
+  }
+
+  return { getComputeCellValue, evaluateNode };
+}
+
+function buildDefaultInputDraft() {
+  function pickRow(predicate, fallbackPredicate = predicate) {
+    return state.data.examRows.find((row) => predicate(row) && row.defaultValue !== null && row.defaultValue !== "")
+      || state.data.examRows.find(fallbackPredicate)
+      || null;
+  }
+
+  const koreanRow = pickRow((row) => row.row >= 9 && row.row <= 10);
+  const mathRow = pickRow((row) => row.row >= 12 && row.row <= 14);
+  const inquiryDefaults = state.data.examRows.filter((row) => row.row >= 20 && row.row <= 36 && row.defaultValue !== null && row.defaultValue !== "");
+  const inquiryOneRow = inquiryDefaults[0] || pickRow((row) => row.row >= 20 && row.row <= 36);
+  const inquiryTwoRow = inquiryDefaults[1] || inquiryDefaults[0] || pickRow((row) => row.row >= 20 && row.row <= 36);
+  const foreignRow = pickRow((row) => row.row >= 37 && row.row <= 45);
+  const englishRow = state.data.examRows.find((row) => row.row === 18);
+  const historyRow = state.data.examRows.find((row) => row.row === 19);
+
+  return {
+    koreanSubject: koreanRow?.subject || "",
+    koreanScore: Number(koreanRow?.defaultValue || 0),
+    mathSubject: mathRow?.subject || "",
+    mathScore: Number(mathRow?.defaultValue || 0),
+    englishGrade: Number(englishRow?.defaultValue || 0),
+    historyGrade: Number(historyRow?.defaultValue || 0),
+    inquiryOneSubject: inquiryOneRow?.subject || "",
+    inquiryOneScore: Number(inquiryOneRow?.defaultValue || 0),
+    inquiryTwoSubject: inquiryTwoRow?.subject || "",
+    inquiryTwoScore: Number(inquiryTwoRow?.defaultValue || 0),
+    foreignSubject: foreignRow?.subject || "",
+    foreignGrade: Number(foreignRow?.defaultValue || 0)
+  };
+}
+
+function buildIndexes() {
+  state.subjectMap = new Map(state.data.subjectRows.map((row) => [row.key, row]));
+  state.examBySubject = new Map(state.data.examRows.map((row) => [row.subject, row]));
+}
+
+function initFormControls() {
+  const examRows = state.data.examRows;
+  const koreanRows = examRows.filter((row) => row.row === 9 || row.row === 10);
+  const mathRows = examRows.filter((row) => row.row >= 12 && row.row <= 14);
+  const inquiryRows = examRows.filter((row) => row.row >= 20 && row.row <= 36);
+  const foreignRows = examRows.filter((row) => row.row >= 37 && row.row <= 45);
+
+  fillSelect(elements.koreanSubject, buildOptionList(koreanRows, false), state.inputDraft.koreanSubject);
+  fillSelect(elements.mathSubject, buildOptionList(mathRows, false), state.inputDraft.mathSubject);
+  fillSelect(elements.inquiryOneSubject, buildOptionList(inquiryRows), state.inputDraft.inquiryOneSubject);
+  fillSelect(elements.inquiryTwoSubject, buildOptionList(inquiryRows), state.inputDraft.inquiryTwoSubject);
+  fillSelect(elements.foreignSubject, buildOptionList(foreignRows), state.inputDraft.foreignSubject);
+
+  elements.koreanScore.value = state.inputDraft.koreanScore;
+  elements.mathScore.value = state.inputDraft.mathScore;
+  elements.englishGrade.value = state.inputDraft.englishGrade;
+  elements.historyGrade.value = state.inputDraft.historyGrade;
+  elements.inquiryOneScore.value = state.inputDraft.inquiryOneScore;
+  elements.inquiryTwoScore.value = state.inputDraft.inquiryTwoScore;
+  elements.foreignGrade.value = state.inputDraft.foreignGrade;
+
+  renderSchoolInputs();
+}
+
+function renderSchoolInputs() {
+  elements.schoolGrid.innerHTML = state.data.schoolRows.map((row) => {
+    const value = state.schoolValues.get(row.formulaCode) ?? row.finalValue ?? 0;
+    return `
+      <label class="school-card" for="school-${escapeHtml(row.formulaCode)}">
+        <strong>${escapeHtml(row.formulaCode)}</strong>
+        <p>${escapeHtml(row.university || "기본값")}</p>
+        <input
+          id="school-${escapeHtml(row.formulaCode)}"
+          data-school-code="${escapeHtml(row.formulaCode)}"
+          type="number"
+          step="0.001"
+          value="${escapeHtml(value)}"
+        >
+      </label>
+    `;
+  }).join("");
+
+  elements.schoolGrid.querySelectorAll("input[data-school-code]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.schoolValues.set(input.dataset.schoolCode, Number(input.value || 0));
+      runAnalysis();
+    });
+  });
+}
+
+function syncDraftFromControls() {
+  state.inputDraft = {
+    koreanSubject: elements.koreanSubject.value,
+    koreanScore: Number(elements.koreanScore.value || 0),
+    mathSubject: elements.mathSubject.value,
+    mathScore: Number(elements.mathScore.value || 0),
+    englishGrade: Number(elements.englishGrade.value || 0),
+    historyGrade: Number(elements.historyGrade.value || 0),
+    inquiryOneSubject: elements.inquiryOneSubject.value,
+    inquiryOneScore: Number(elements.inquiryOneScore.value || 0),
+    inquiryTwoSubject: elements.inquiryTwoSubject.value,
+    inquiryTwoScore: Number(elements.inquiryTwoScore.value || 0),
+    foreignSubject: elements.foreignSubject.value,
+    foreignGrade: Number(elements.foreignGrade.value || 0)
+  };
+}
+
+function buildSchoolValueMap() {
+  const values = new Map();
+  state.data.schoolRows.forEach((row) => {
+    const current = state.schoolValues.get(row.formulaCode);
+    values.set(row.formulaCode, current ?? row.finalValue ?? 0);
+  });
+  return values;
+}
+
+function lookupSubjectRow(subject, score) {
+  if (!subject || !score) {
+    return null;
+  }
+  return state.subjectMap.get(`${subject}-${score}`) || null;
+}
+
+function buildInputContext() {
+  const draft = state.inputDraft;
+  const examSheet = {};
+  const rawScores = new Map();
+  const subjectRows = new Map();
+
+  state.data.examRows.forEach((row) => {
+    examSheet[row.row] = { B: row.subject, C: "", D: 0, E: 0 };
+    rawScores.set(row.row, "");
   });
 
-  return index;
-}
-
-function readByHeader(row, headerIndex, label) {
-  const position = headerIndex[label];
-  return position === undefined ? null : row[position];
-}
-
-function firstHeader(headerIndex, predicate) {
-  return Object.keys(headerIndex).find(predicate);
-}
-
-function extractExamInputs(workbook) {
-  const sheet = requireSheet(workbook, SHEET_NAMES.exam);
-  const range = XLSX.utils.decode_range(sheet["!ref"]);
-  const items = [];
-  let currentArea = "";
-
-  for (let row = 0; row <= Math.min(range.e.r, 120); row += 1) {
-    const areaCell = getCell(sheet, row, 0);
-    const subjectCell = getCell(sheet, row, 1);
-    const inputCell = getCell(sheet, row, 2);
-
-    if (areaCell && !areaCell.f && typeof areaCell.v === "string") {
-      currentArea = areaCell.v.trim();
+  function applyDirectRow(subject, score, options = {}) {
+    const row = state.examBySubject.get(subject);
+    if (!row) {
+      return null;
     }
 
-    if (!subjectCell || !inputCell || inputCell.f) {
-      continue;
+    rawScores.set(row.row, score || "");
+    examSheet[row.row].C = score || "";
+
+    if (!score) {
+      examSheet[row.row].D = 0;
+      examSheet[row.row].E = 0;
+      return null;
     }
 
-    if (inputCell.v === "" || inputCell.v === null || inputCell.v === undefined) {
-      continue;
+    const lookup = lookupSubjectRow(subject, score);
+    if (!lookup) {
+      throw new Error(`점수표에 없는 입력입니다: ${subject} ${score}`);
     }
 
-    if (currentArea === "영역" || currentArea.includes("수능 점수 입력")) {
-      continue;
-    }
-
-    items.push({
-      area: currentArea || "기타",
-      subject: String(subjectCell.v).trim(),
-      value: inputCell.v
-    });
+    examSheet[row.row].D = options.percentile ?? lookup.percentile ?? 0;
+    examSheet[row.row].E = options.grade ?? lookup.grade ?? 0;
+    subjectRows.set(row.row, lookup);
+    return lookup;
   }
 
-  return items;
-}
-
-function extractSchoolInputs(workbook) {
-  const sheet = requireSheet(workbook, SHEET_NAMES.school);
-  const range = XLSX.utils.decode_range(sheet["!ref"]);
-  const items = [];
-
-  for (let row = 0; row <= Math.min(range.e.r, 100); row += 1) {
-    const universityCell = getCell(sheet, row, 0);
-    const formulaCell = getCell(sheet, row, 1);
-    const directCell = getCell(sheet, row, 3);
-
-    if (!formulaCell || !directCell || directCell.f) {
-      continue;
+  const koreanSelectedRow = state.examBySubject.get(draft.koreanSubject);
+  const koreanCommon = draft.koreanScore ? lookupSubjectRow("국어", draft.koreanScore) : null;
+  const koreanSelected = draft.koreanScore
+    ? lookupSubjectRow(draft.koreanSubject, draft.koreanScore) || koreanCommon
+    : null;
+  if (koreanSelectedRow) {
+    rawScores.set(koreanSelectedRow.row, draft.koreanScore || "");
+    examSheet[koreanSelectedRow.row].C = draft.koreanScore || "";
+    examSheet[koreanSelectedRow.row].D = koreanSelected?.percentile ?? 0;
+    examSheet[koreanSelectedRow.row].E = koreanSelected?.grade ?? 0;
+    if (koreanSelected) {
+      subjectRows.set(koreanSelectedRow.row, koreanSelected);
     }
-
-    if (directCell.v === "" || directCell.v === null || directCell.v === undefined) {
-      continue;
-    }
-
-    items.push({
-      university: universityCell?.v ? String(universityCell.v).trim() : "",
-      formula: String(formulaCell.v).trim(),
-      value: directCell.v
-    });
+  }
+  rawScores.set(11, draft.koreanScore || "");
+  examSheet[11].C = draft.koreanScore || "";
+  examSheet[11].D = koreanCommon?.percentile ?? 0;
+  examSheet[11].E = koreanCommon?.grade ?? 0;
+  if (koreanCommon) {
+    subjectRows.set(11, koreanCommon);
   }
 
-  return items;
+  const mathSelectedRow = state.examBySubject.get(draft.mathSubject);
+  const mathCommon = draft.mathScore ? lookupSubjectRow("수학", draft.mathScore) : null;
+  const mathSelected = draft.mathScore
+    ? lookupSubjectRow(draft.mathSubject, draft.mathScore) || mathCommon
+    : null;
+  if (mathSelectedRow) {
+    rawScores.set(mathSelectedRow.row, draft.mathScore || "");
+    examSheet[mathSelectedRow.row].C = draft.mathScore || "";
+    examSheet[mathSelectedRow.row].D = mathSelected?.percentile ?? 0;
+    examSheet[mathSelectedRow.row].E = mathSelected?.grade ?? 0;
+    if (mathSelected) {
+      subjectRows.set(mathSelectedRow.row, mathSelected);
+    }
+  }
+  rawScores.set(15, draft.mathScore || "");
+  examSheet[15].C = draft.mathScore || "";
+  examSheet[15].D = mathCommon?.percentile ?? 0;
+  examSheet[15].E = mathCommon?.grade ?? 0;
+  if (mathCommon) {
+    subjectRows.set(15, mathCommon);
+  }
+
+  const mathScience = draft.mathScore ? lookupSubjectRow("수학(이과)", draft.mathScore) : null;
+  rawScores.set(16, draft.mathScore || "");
+  examSheet[16].C = draft.mathScore || "";
+  examSheet[16].D = mathScience?.percentile ?? 0;
+  examSheet[16].E = mathScience?.grade ?? 0;
+  if (mathScience) {
+    subjectRows.set(16, mathScience);
+  }
+
+  const mathHumanities = draft.mathScore ? lookupSubjectRow("수학(문과)", draft.mathScore) : null;
+  rawScores.set(17, draft.mathScore || "");
+  examSheet[17].C = draft.mathScore || "";
+  examSheet[17].D = mathHumanities?.percentile ?? 0;
+  examSheet[17].E = mathHumanities?.grade ?? 0;
+  if (mathHumanities) {
+    subjectRows.set(17, mathHumanities);
+  }
+
+  applyDirectRow("영어", draft.englishGrade);
+  applyDirectRow("한국사", draft.historyGrade);
+
+  if (draft.inquiryOneSubject && draft.inquiryOneScore) {
+    applyDirectRow(draft.inquiryOneSubject, draft.inquiryOneScore);
+  }
+  if (draft.inquiryTwoSubject && draft.inquiryTwoScore) {
+    applyDirectRow(draft.inquiryTwoSubject, draft.inquiryTwoScore);
+  }
+  if (draft.foreignSubject && draft.foreignGrade) {
+    applyDirectRow(draft.foreignSubject, draft.foreignGrade);
+  }
+
+  return {
+    examSheet,
+    rawScores,
+    subjectRows,
+    hasEnglishError: !draft.englishGrade || draft.englishGrade > 9 || !draft.historyGrade || draft.historyGrade > 9
+  };
 }
 
-function buildProgramKey(record) {
-  return [
-    record.track,
-    record.university,
-    record.major,
-    record.selectionType,
-    record.admissionGroup
-  ].map(normalizeText).join("||");
-}
+function buildRuntimeContext(inputContext) {
+  const columnCount = state.compiledColumns.length;
+  const baseRows = {};
 
-function extractResults(workbook, sheetName) {
-  const sheet = requireSheet(workbook, sheetName);
-  const matrix = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: null,
-    blankrows: false,
-    raw: true
+  state.data.computeBaseRows.forEach((row) => {
+    baseRows[row.row] = {
+      A: row.a,
+      B: row.b,
+      C: row.c
+    };
   });
 
-  const headerRow = matrix[4] || [];
-  const headerIndex = buildHeaderIndex(headerRow);
-  const nationalRankHeader = firstHeader(headerIndex, (label) => label.startsWith("전국등수"));
-  const rows = [];
+  return {
+    columns: state.compiledColumns,
+    computeSheetName: "COMPUTE",
+    baseRows,
+    examSheet: inputContext.examSheet,
+    rawScores: inputContext.rawScores,
+    subjectRows: inputContext.subjectRows,
+    schoolValues: buildSchoolValueMap(),
+    subject1Grid: state.data.subject1Grid,
+    subject2Grid: state.data.subject2Grid,
+    memo: Array.from({ length: 73 }, () => Array(columnCount).fill(undefined)),
+    visiting: new Set()
+  };
+}
 
-  for (let index = 5; index < matrix.length; index += 1) {
-    const row = matrix[index];
-    const university = readByHeader(row, headerIndex, "대학교");
-    const major = readByHeader(row, headerIndex, "전공");
+function evaluateRestrictMaps(evaluator) {
+  const maps = {
+    mathInquiry: new Map(),
+    grade: new Map(),
+    designatedScience: new Map()
+  };
 
-    if (!university || !major) {
-      continue;
+  state.compiledRestrictRows.forEach((row) => {
+    if (row.mathInquiry.key && row.mathInquiry.resultAst) {
+      try {
+        const value = evaluator.evaluateNode(row.mathInquiry.resultAst, 0);
+        if (value) {
+          maps.mathInquiry.set(row.mathInquiry.key, value);
+        }
+      } catch {
+        // Ignore unsupported edge-case restrictions and keep the calculator responsive.
+      }
     }
 
-    const totalScore = toNumber(readByHeader(row, headerIndex, "수능+내신"));
-    const expectedScore = toNumber(readByHeader(row, headerIndex, "예상점수"));
-    const safeScore = toNumber(readByHeader(row, headerIndex, "적정점수"));
-    const reachScore = toNumber(readByHeader(row, headerIndex, "소신점수"));
+    if (row.grade.key && row.grade.resultFormula) {
+      try {
+        const rewritten = row.grade.resultFormula.replace(
+          /IFERROR\(VLOOKUP\("([^"]+)",\$A:\$A,1,FALSE\),"\"\)/g,
+          (_, key) => `"${maps.mathInquiry.has(key) ? key : ""}"`
+        );
+        const value = evaluator.evaluateNode(parseFormula(rewritten), 0);
+        if (value) {
+          maps.grade.set(row.grade.key, value);
+        }
+      } catch {
+        // Ignore unsupported edge-case restrictions and keep the calculator responsive.
+      }
+    }
 
-    const record = {
-      rowNumber: index + 1,
-      track: String(readByHeader(row, headerIndex, "계열") || "").trim() || (sheetName.includes("이과") ? "이과" : "문과"),
-      university: String(university).trim(),
-      major: String(major).trim(),
-      status: String(readByHeader(row, headerIndex, "합격가능성") || "").trim(),
-      examScore: toNumber(readByHeader(row, headerIndex, "수능점수")),
-      schoolScore: toNumber(readByHeader(row, headerIndex, "내신점수")),
-      totalScore,
-      percentile: toNumber(readByHeader(row, headerIndex, "누백")),
-      nationalRank: nationalRankHeader ? String(readByHeader(row, headerIndex, nationalRankHeader) || "").trim() : "",
-      safeScore,
-      expectedScore,
-      reachScore,
-      safePercentile: toNumber(readByHeader(row, headerIndex, "적정누백")),
-      expectedPercentile: toNumber(readByHeader(row, headerIndex, "예상누백")),
-      reachPercentile: toNumber(readByHeader(row, headerIndex, "소신누백")),
-      universityType: String(readByHeader(row, headerIndex, "대학구분") || "").trim(),
-      admissionGroup: String(readByHeader(row, headerIndex, "모집군") || "").trim(),
-      capacity: readByHeader(row, headerIndex, "정원"),
-      region: String(readByHeader(row, headerIndex, "시도") || "").trim(),
-      city: String(readByHeader(row, headerIndex, "시군") || "").trim(),
-      category: String(readByHeader(row, headerIndex, "학과특성") || "").trim(),
-      universityShort: String(readByHeader(row, headerIndex, "대학교(약칭)") || "").trim(),
-      majorShort: String(readByHeader(row, headerIndex, "전공(약칭)") || "").trim(),
-      selectionType: String(readByHeader(row, headerIndex, "선발유형") || "").trim(),
-      scoreMethod: String(readByHeader(row, headerIndex, "점수환산") || "").trim(),
-      subjectRule: String(readByHeader(row, headerIndex, "수탐선택") || "").trim(),
-      examElements: String(readByHeader(row, headerIndex, "수능요소") || "").trim(),
-      examCombo: String(readByHeader(row, headerIndex, "수능조합") || "").trim(),
-      requiredSubjects: String(readByHeader(row, headerIndex, "필수") || "").trim(),
-      optionalSubjects: String(readByHeader(row, headerIndex, "선택") || "").trim(),
-      weightedOption: String(readByHeader(row, headerIndex, "가중택") || "").trim(),
-      inquiryCount: readByHeader(row, headerIndex, "탐구과목수"),
-      koreanWeight: toNumber(readByHeader(row, headerIndex, "국어배점")),
-      mathWeight: toNumber(readByHeader(row, headerIndex, "수학배점")),
-      inquiryWeight: toNumber(readByHeader(row, headerIndex, "탐구배점")),
-      koreanRatio: toNumber(readByHeader(row, headerIndex, "국어구성비")),
-      mathRatio: toNumber(readByHeader(row, headerIndex, "수학구성비")),
-      inquiryRatio: toNumber(readByHeader(row, headerIndex, "탐구구성비")),
-      englishAdjustments: Array.from({ length: 9 }, (_, offset) => {
-        const label = `영어${offset + 1}환점`;
+    if (row.designatedScience.university && row.designatedScience.major && row.designatedScience.resultAst) {
+      try {
+        const value = evaluator.evaluateNode(row.designatedScience.resultAst, 0);
+        if (value) {
+          maps.designatedScience.set(`${row.designatedScience.university} ${row.designatedScience.major}`, value);
+        }
+      } catch {
+        // Ignore unsupported edge-case restrictions and keep the calculator responsive.
+      }
+    }
+  });
+
+  return maps;
+}
+
+function statusForProgram(result, totalScore, restrictMaps, hasEnglishError) {
+  if (hasEnglishError) {
+    return "오류(영어국사)";
+  }
+
+  if (restrictMaps.mathInquiry.has(result.code)) {
+    return restrictMaps.mathInquiry.get(result.code);
+  }
+  if (restrictMaps.grade.has(result.code)) {
+    return restrictMaps.grade.get(result.code);
+  }
+
+  const programKey = `${result.university} ${result.major}`;
+  if (restrictMaps.designatedScience.has(programKey)) {
+    return restrictMaps.designatedScience.get(programKey);
+  }
+
+  if (totalScore === 0) {
+    return "제외(수탐결격)";
+  }
+  if (totalScore >= result.properScore) {
+    return "적정점수 이상";
+  }
+  if (totalScore >= result.expectedScore) {
+    return "예상점수 이상";
+  }
+  if (totalScore >= result.hopefulScore) {
+    return "소신점수 이상";
+  }
+  return "소신점수 미만";
+}
+
+function runAnalysis() {
+  if (!state.data) {
+    return;
+  }
+
+  syncDraftFromControls();
+  setComputeBadge("계산 중");
+
+  try {
+    const inputContext = buildInputContext();
+    const runtime = buildRuntimeContext(inputContext);
+    const evaluator = createEvaluator(runtime);
+    const restrictMaps = evaluateRestrictMaps(evaluator);
+
+    const scoresByCode = new Map();
+    state.compiledColumns.forEach((column, index) => {
+      let examScore = 0;
+      let schoolScore = 0;
+      try {
+        examScore = evaluator.getComputeCellValue(3, index);
+        schoolScore = evaluator.getComputeCellValue(4, index);
+      } catch {
+        examScore = 0;
+        schoolScore = 0;
+      }
+      scoresByCode.set(column.code, {
+        examScore: typeof examScore === "number" ? examScore : 0,
+        schoolScore: typeof schoolScore === "number" ? schoolScore : 0
+      });
+    });
+
+    state.lastResults = {
+      science: state.data.results.science.map((row) => {
+        const score = scoresByCode.get(row.code) || { examScore: 0, schoolScore: 0 };
+        const totalScore = score.examScore + score.schoolScore;
         return {
-          grade: offset + 1,
-          value: toNumber(readByHeader(row, headerIndex, label))
+          ...row,
+          examScore: score.examScore,
+          schoolScore: score.schoolScore,
+          totalScore,
+          status: statusForProgram(row, totalScore, restrictMaps, inputContext.hasEnglishError)
+        };
+      }),
+      humanities: state.data.results.humanities.map((row) => {
+        const score = scoresByCode.get(row.code) || { examScore: 0, schoolScore: 0 };
+        const totalScore = score.examScore + score.schoolScore;
+        return {
+          ...row,
+          examScore: score.examScore,
+          schoolScore: score.schoolScore,
+          totalScore,
+          status: statusForProgram(row, totalScore, restrictMaps, inputContext.hasEnglishError)
         };
       })
     };
 
-    record.deltaSafe = calcDelta(record.totalScore, record.safeScore);
-    record.deltaExpected = calcDelta(record.totalScore, record.expectedScore);
-    record.deltaReach = calcDelta(record.totalScore, record.reachScore);
-    record.statusPriority = STATUS_PRIORITY[record.status] ?? -2;
-    record.programKey = buildProgramKey(record);
-
-    rows.push(record);
-  }
-
-  return rows;
-}
-
-function countByStatus(rows) {
-  const counts = {};
-
-  for (const row of rows) {
-    counts[row.status] = (counts[row.status] || 0) + 1;
-  }
-
-  return counts;
-}
-
-function extractAnalysis(file, workbook) {
-  const year = detectAnalyzerYear(file.name, workbook);
-  const scienceRows = extractResults(workbook, SHEET_NAMES.science);
-  const humanitiesRows = extractResults(workbook, SHEET_NAMES.humanities);
-  const allRows = [...scienceRows, ...humanitiesRows];
-
-  return {
-    yearKey: year.key,
-    yearLabel: year.label,
-    fileName: file.name,
-    fileSize: file.size,
-    analyzerStamp: getAnalyzerStamp(workbook),
-    examInputs: extractExamInputs(workbook),
-    schoolInputs: extractSchoolInputs(workbook),
-    results: {
-      이과: scienceRows,
-      문과: humanitiesRows
-    },
-    allRows,
-    counts: countByStatus(allRows)
-  };
-}
-
-function getSortedAnalyses() {
-  return [...state.analyses.values()].sort((left, right) => Number(right.yearKey) - Number(left.yearKey));
-}
-
-function getActiveAnalysis() {
-  if (!state.analyses.size) {
-    return null;
-  }
-
-  if (state.activeYearKey && state.analyses.has(state.activeYearKey)) {
-    return state.analyses.get(state.activeYearKey);
-  }
-
-  const first = getSortedAnalyses()[0];
-  state.activeYearKey = first.yearKey;
-  return first;
-}
-
-function setUploadStatus(text) {
-  elements.uploadStatus.textContent = text;
-}
-
-function createEmptyState(text) {
-  const div = document.createElement("div");
-  div.className = "empty-state";
-  div.textContent = text;
-  return div;
-}
-
-function renderFileList() {
-  elements.fileList.replaceChildren();
-
-  for (const analysis of getSortedAnalyses()) {
-    const chip = document.createElement("div");
-    chip.className = "file-chip";
-    chip.innerHTML = `
-      <strong>${escapeHtml(analysis.yearLabel)}</strong>
-      <div class="muted">${escapeHtml(analysis.fileName)}</div>
-      <div class="muted">이과 ${formatNumber(analysis.results["이과"].length)}개 · 문과 ${formatNumber(analysis.results["문과"].length)}개</div>
-    `;
-    elements.fileList.append(chip);
+    renderResults();
+    setComputeBadge("계산 완료");
+  } catch (error) {
+    console.error(error);
+    setComputeBadge("계산 실패");
+    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">계산 중 오류가 발생했습니다. 입력값을 확인해 주세요.</td></tr>`;
   }
 }
 
-function renderTrackTabs() {
-  elements.trackTabs.replaceChildren();
-
-  for (const track of TRACKS) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = track;
-    button.className = track === state.track ? "active" : "";
-    button.addEventListener("click", () => {
-      state.track = track;
-      state.selectedProgramKey = null;
-      renderAll();
-    });
-    elements.trackTabs.append(button);
-  }
-}
-
-function fillSelect(select, options, currentValue, allLabel) {
-  const nextValue = options.includes(currentValue) ? currentValue : "all";
-
-  select.replaceChildren();
-
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = allLabel;
-  select.append(allOption);
-
-  for (const optionValue of options) {
-    const option = document.createElement("option");
-    option.value = optionValue;
-    option.textContent = optionValue;
-    select.append(option);
-  }
-
-  select.value = nextValue;
-}
-
-function renderFilters() {
-  const analyses = getSortedAnalyses();
-  const active = getActiveAnalysis();
-  const rows = active ? active.results[state.track] : [];
-
-  fillSelect(
-    elements.yearFilter,
-    analyses.map((analysis) => analysis.yearKey),
-    state.activeYearKey,
-    "선택된 최신 연도"
-  );
-
-  const statuses = [...new Set(rows.map((row) => row.status))].sort(
-    (left, right) => (STATUS_PRIORITY[right] ?? -2) - (STATUS_PRIORITY[left] ?? -2)
-  );
-  const groups = [...new Set(rows.map((row) => row.admissionGroup).filter(Boolean))].sort();
-  const regions = [...new Set(rows.map((row) => row.region).filter(Boolean))].sort();
-
-  fillSelect(elements.statusFilter, statuses, state.status, "전체 상태");
-  fillSelect(elements.groupFilter, groups, state.group, "전체 모집군");
-  fillSelect(elements.regionFilter, regions, state.region, "전체 지역");
-  elements.sortFilter.value = state.sort;
-  elements.searchInput.value = state.search;
-}
-
-function renderSummary() {
-  const analysis = getActiveAnalysis();
-  elements.summaryGrid.replaceChildren();
-  elements.examInputs.replaceChildren();
-  elements.schoolInputs.replaceChildren();
-
-  if (!analysis) {
-    elements.activeYearBadge.textContent = "연도 미선택";
-    elements.summaryGrid.append(createEmptyState("분석기 파일을 올리면 업로드 요약이 여기에 표시됩니다."));
-    elements.examInputs.append(createEmptyState("수능 입력값이 여기에 표시됩니다."));
-    elements.schoolInputs.append(createEmptyState("내신 입력값이 여기에 표시됩니다."));
-    return;
-  }
-
-  elements.activeYearBadge.textContent = `${analysis.yearLabel} · ${analysis.fileName}`;
-
-  const summaryItems = [
-    { label: "전체 모집단위", value: analysis.allRows.length, note: "업로드된 결과 행 수" },
-    { label: "이과 결과", value: analysis.results["이과"].length, note: "이과계열분석결과" },
-    { label: "문과 결과", value: analysis.results["문과"].length, note: "문과계열분석결과" },
-    { label: "적정점수 이상", value: analysis.counts["적정점수 이상"] || 0, note: "업로드 파일 기준" },
-    { label: "예상점수 이상", value: analysis.counts["예상점수 이상"] || 0, note: "업로드 파일 기준" },
-    { label: "소신점수 이상", value: analysis.counts["소신점수 이상"] || 0, note: "업로드 파일 기준" }
-  ];
-
-  for (const item of summaryItems) {
-    const card = document.createElement("article");
-    card.className = "metric-card";
-    card.innerHTML = `
-      <strong>${escapeHtml(item.label)}</strong>
-      <div class="value">${formatNumber(item.value)}</div>
-      <small>${escapeHtml(item.note)}</small>
-    `;
-    elements.summaryGrid.append(card);
-  }
-
-  if (analysis.examInputs.length) {
-    for (const item of analysis.examInputs) {
-      const pill = document.createElement("div");
-      pill.className = "pill";
-      pill.textContent = `${item.subject} ${formatNumber(item.value)}`;
-      elements.examInputs.append(pill);
-    }
-  } else {
-    elements.examInputs.append(createEmptyState("엑셀 파일에서 직접 입력된 수능 점수를 찾지 못했습니다."));
-  }
-
-  if (analysis.schoolInputs.length) {
-    for (const item of analysis.schoolInputs) {
-      const pill = document.createElement("div");
-      pill.className = "pill";
-      pill.textContent = `${item.formula} ${item.value}`;
-      elements.schoolInputs.append(pill);
-    }
-  } else {
-    elements.schoolInputs.append(createEmptyState("직접 입력된 내신값이 없거나 기본값만 사용된 상태입니다."));
-  }
-}
-
-function getFilteredRows() {
-  const analysis = getActiveAnalysis();
-  if (!analysis) {
-    return [];
-  }
-
-  const query = normalizeText(state.search);
-  const rows = analysis.results[state.track] || [];
+function getActiveRows() {
+  const rows = state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
+  const keyword = state.search.trim().toLowerCase();
 
   const filtered = rows.filter((row) => {
-    if (state.status !== "all" && row.status !== state.status) {
-      return false;
-    }
-
-    if (state.group !== "all" && row.admissionGroup !== state.group) {
-      return false;
-    }
-
-    if (state.region !== "all" && row.region !== state.region) {
-      return false;
-    }
-
-    if (!query) {
+    if (!keyword) {
       return true;
     }
-
-    const haystack = [
-      row.university,
-      row.major,
-      row.selectionType,
-      row.scoreMethod,
-      row.universityType,
-      row.subjectRule
-    ].join(" ").toLowerCase();
-
-    return haystack.includes(query);
+    return `${row.university} ${row.major}`.toLowerCase().includes(keyword);
   });
 
   filtered.sort((left, right) => {
-    if (state.sort === "delta-desc") {
-      return (right.deltaExpected ?? -Infinity) - (left.deltaExpected ?? -Infinity);
+    const priorityGap = (STATUS_PRIORITY[right.status] ?? -99) - (STATUS_PRIORITY[left.status] ?? -99);
+    if (priorityGap !== 0) {
+      return priorityGap;
     }
-
-    if (state.sort === "delta-asc") {
-      return (left.deltaExpected ?? Infinity) - (right.deltaExpected ?? Infinity);
-    }
-
-    if (state.sort === "expected-desc") {
-      return (right.expectedScore ?? -Infinity) - (left.expectedScore ?? -Infinity);
-    }
-
-    if (state.sort === "expected-asc") {
-      return (left.expectedScore ?? Infinity) - (right.expectedScore ?? Infinity);
-    }
-
-    if (state.sort === "name") {
-      return left.university.localeCompare(right.university, "ko");
-    }
-
-    if (right.statusPriority !== left.statusPriority) {
-      return right.statusPriority - left.statusPriority;
-    }
-
-    return (right.deltaExpected ?? -Infinity) - (left.deltaExpected ?? -Infinity);
+    return right.totalScore - left.totalScore;
   });
 
   return filtered;
 }
 
-function statusTone(status) {
-  if (status === "적정점수 이상") return "good";
-  if (status === "예상점수 이상") return "mid";
-  if (status === "소신점수 이상") return "warn";
-  if (status === "소신점수 미만" || status.startsWith("오류")) return "bad";
-  return "neutral";
+function renderStats(rows) {
+  const counts = { good: 0, mid: 0, low: 0 };
+
+  rows.forEach((row) => {
+    if (row.status === "적정점수 이상") {
+      counts.good += 1;
+    } else if (row.status === "예상점수 이상") {
+      counts.mid += 1;
+    } else {
+      counts.low += 1;
+    }
+  });
+
+  elements.metricTotal.textContent = formatNumber(rows.length);
+  elements.metricGood.textContent = formatNumber(counts.good);
+  elements.metricMid.textContent = formatNumber(counts.mid);
+  elements.metricLow.textContent = formatNumber(counts.low);
 }
 
 function renderResults() {
-  const filtered = getFilteredRows();
-  state.filteredRows = filtered;
-  elements.resultBody.replaceChildren();
+  const rows = getActiveRows();
+  renderStats(rows);
+  elements.resultCaption.textContent = `${state.track} 기준 ${formatNumber(rows.length)}개 모집단위를 계산했습니다.`;
 
-  if (!filtered.length) {
-    const row = document.createElement("tr");
-    row.innerHTML = `<td colspan="10">조건에 맞는 결과가 없습니다.</td>`;
-    elements.resultBody.append(row);
-    elements.resultCount.textContent = "0개 결과";
-    elements.resultFootnote.textContent = "";
-    state.selectedProgramKey = null;
-    renderDetails();
+  if (!rows.length) {
+    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">검색 결과가 없습니다.</td></tr>`;
     return;
   }
 
-  if (!filtered.some((row) => row.programKey === state.selectedProgramKey)) {
-    state.selectedProgramKey = filtered[0].programKey;
-  }
-
-  const visible = filtered.slice(0, MAX_RENDERED_ROWS);
-
-  for (const row of visible) {
-    const tr = document.createElement("tr");
-    tr.dataset.key = row.programKey;
-
-    if (row.programKey === state.selectedProgramKey) {
-      tr.classList.add("selected");
-    }
-
-    const delta = formatDelta(row.deltaExpected);
-
-    tr.innerHTML = `
-      <td>
-        <strong>${escapeHtml(row.university)}</strong>
-        <div class="muted">${escapeHtml(row.universityType || "-")}</div>
-      </td>
-      <td>
-        <strong>${escapeHtml(row.major)}</strong>
-        <div class="muted">${escapeHtml(row.category || "-")}</div>
-      </td>
-      <td><span class="status-tag ${statusTone(row.status)}">${escapeHtml(row.status || "-")}</span></td>
-      <td>${formatNumber(row.totalScore)}</td>
-      <td>${formatNumber(row.expectedScore)}</td>
-      <td><span class="delta ${delta.tone}">${delta.text}</span></td>
-      <td>${escapeHtml(row.admissionGroup || "-")}</td>
-      <td>${escapeHtml(row.region || "-")}</td>
-      <td>${escapeHtml(row.selectionType || "-")}</td>
-      <td>${escapeHtml(row.scoreMethod || "-")}</td>
+  elements.resultBody.innerHTML = rows.map((row) => {
+    const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
+    return `
+      <tr>
+        <td>
+          <div class="program">
+            <strong>${escapeHtml(row.university)}</strong>
+            <small>${escapeHtml(row.major)}</small>
+          </div>
+        </td>
+        <td><span class="status-pill ${tone}">${escapeHtml(row.status)}</span></td>
+        <td>
+          <div class="thresholds">
+            <span>수능 ${formatNumber(row.examScore)}</span>
+            <span>내신 ${formatNumber(row.schoolScore)}</span>
+            <strong>${formatNumber(row.totalScore)}</strong>
+          </div>
+        </td>
+        <td>
+          <div class="thresholds">
+            <span>적정 ${formatNumber(row.properScore)}</span>
+            <span>예상 ${formatNumber(row.expectedScore)}</span>
+            <span>소신 ${formatNumber(row.hopefulScore)}</span>
+          </div>
+        </td>
+      </tr>
     `;
-
-    elements.resultBody.append(tr);
-  }
-
-  elements.resultCount.textContent = `${formatNumber(filtered.length)}개 결과`;
-  elements.resultFootnote.textContent = filtered.length > visible.length
-    ? `필터된 ${formatNumber(filtered.length)}개 중 상위 ${formatNumber(visible.length)}개만 표시했습니다. 검색어나 필터를 더 좁히면 전체를 더 쉽게 볼 수 있습니다.`
-    : `${state.track} 결과 ${formatNumber(filtered.length)}개를 표시 중입니다.`;
-
-  renderDetails();
+  }).join("");
 }
 
-function findSelectedRow() {
-  return state.filteredRows.find((row) => row.programKey === state.selectedProgramKey) || null;
-}
+function bindEvents() {
+  [
+    elements.koreanSubject,
+    elements.koreanScore,
+    elements.mathSubject,
+    elements.mathScore,
+    elements.englishGrade,
+    elements.historyGrade,
+    elements.inquiryOneSubject,
+    elements.inquiryOneScore,
+    elements.inquiryTwoSubject,
+    elements.inquiryTwoScore,
+    elements.foreignSubject,
+    elements.foreignGrade
+  ].forEach((element) => {
+    element.addEventListener("input", runAnalysis);
+    element.addEventListener("change", runAnalysis);
+  });
 
-function renderDetailMetric(label, value, note = "") {
-  return `
-    <article class="detail-card">
-      <strong>${escapeHtml(label)}</strong>
-      <div class="value">${escapeHtml(value)}</div>
-      ${note ? `<div class="muted">${escapeHtml(note)}</div>` : ""}
-    </article>
-  `;
-}
+  elements.resetButton.addEventListener("click", () => {
+    state.inputDraft = buildDefaultInputDraft();
+    initFormControls();
+    runAnalysis();
+  });
 
-function renderDetails() {
-  const row = findSelectedRow();
-  elements.detailBody.replaceChildren();
-
-  if (!row) {
-    elements.detailBody.append(createEmptyState("업로드 후 결과 행을 선택하면 상세 정보가 여기에 표시됩니다."));
-    return;
-  }
-
-  const deltaSafe = formatDelta(row.deltaSafe);
-  const deltaExpected = formatDelta(row.deltaExpected);
-  const deltaReach = formatDelta(row.deltaReach);
-
-  const englishRows = row.englishAdjustments
-    .map((item) => `<div class="pill">영어 ${item.grade}등급 ${formatNumber(item.value)}</div>`)
-    .join("");
-
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = `
-    <div class="detail-card">
-      <strong>${escapeHtml(row.university)} ${escapeHtml(row.major)}</strong>
-      <div class="muted">${escapeHtml(row.track)} · ${escapeHtml(row.selectionType || "-")} · ${escapeHtml(row.admissionGroup || "-")} · ${escapeHtml(row.region || "-")} ${escapeHtml(row.city || "")}</div>
-    </div>
-
-    <div class="detail-grid">
-      ${renderDetailMetric("내 점수", formatNumber(row.totalScore), "수능+내신")}
-      ${renderDetailMetric("적정점수", formatNumber(row.safeScore), deltaSafe.text)}
-      ${renderDetailMetric("예상점수", formatNumber(row.expectedScore), deltaExpected.text)}
-      ${renderDetailMetric("소신점수", formatNumber(row.reachScore), deltaReach.text)}
-      ${renderDetailMetric("누백", formatNumber(row.percentile), row.nationalRank || "전국등수 정보 없음")}
-      ${renderDetailMetric("정원", row.capacity === null ? "-" : formatNumber(row.capacity), row.universityType || "대학구분 없음")}
-    </div>
-
-    <div class="detail-card">
-      <strong>반영 규칙</strong>
-      <div class="muted">점수환산: ${escapeHtml(row.scoreMethod || "-")}</div>
-      <div class="muted">수탐선택: ${escapeHtml(row.subjectRule || "-")}</div>
-      <div class="muted">수능요소: ${escapeHtml(row.examElements || "-")}</div>
-      <div class="muted">수능조합: ${escapeHtml(row.examCombo || "-")}</div>
-      <div class="muted">필수: ${escapeHtml(row.requiredSubjects || "-")}</div>
-      <div class="muted">선택: ${escapeHtml(row.optionalSubjects || "-")}</div>
-      <div class="muted">가중택: ${escapeHtml(row.weightedOption || "-")}</div>
-      <div class="muted">탐구과목수: ${escapeHtml(row.inquiryCount ?? "-")}</div>
-    </div>
-
-    <div class="detail-card">
-      <strong>배점 및 구성비</strong>
-      <div class="muted">국어 ${formatNumber(row.koreanWeight)} / 수학 ${formatNumber(row.mathWeight)} / 탐구 ${formatNumber(row.inquiryWeight)}</div>
-      <div class="muted">국어 ${formatNumber(row.koreanRatio)} / 수학 ${formatNumber(row.mathRatio)} / 탐구 ${formatNumber(row.inquiryRatio)}</div>
-    </div>
-
-    <div class="detail-card">
-      <strong>영어 등급별 환점</strong>
-      <div class="pill-list">${englishRows}</div>
-    </div>
-  `;
-
-  elements.detailBody.append(wrapper);
-}
-
-function buildComparisonRows(track) {
-  const analyzer25 = state.analyses.get("25");
-  const analyzer26 = state.analyses.get("26");
-
-  if (!analyzer25 || !analyzer26) {
-    return [];
-  }
-
-  const older = new Map(analyzer25.results[track].map((row) => [row.programKey, row]));
-  const compared = [];
-
-  for (const newerRow of analyzer26.results[track]) {
-    const olderRow = older.get(newerRow.programKey);
-    if (!olderRow) {
-      continue;
+  elements.trackTabs.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-track]");
+    if (!button) {
+      return;
     }
 
-    compared.push({
-      programKey: newerRow.programKey,
-      label: `${newerRow.university} ${newerRow.major}`,
-      selectionType: newerRow.selectionType,
-      expectedDelta: calcDelta(newerRow.expectedScore, olderRow.expectedScore),
-      safeDelta: calcDelta(newerRow.safeScore, olderRow.safeScore),
-      reachDelta: calcDelta(newerRow.reachScore, olderRow.reachScore)
+    state.track = button.dataset.track;
+    elements.trackTabs.querySelectorAll("button").forEach((node) => {
+      node.classList.toggle("is-active", node === button);
     });
-  }
+    renderResults();
+  });
 
-  return compared;
-}
-
-function renderCompare() {
-  const comparisons = buildComparisonRows(state.track);
-
-  if (!comparisons.length) {
-    elements.comparePanel.hidden = true;
-    return;
-  }
-
-  elements.comparePanel.hidden = false;
-  elements.compareGrid.replaceChildren();
-  elements.compareList.replaceChildren();
-  elements.compareBadge.textContent = `${state.track} 기준 ${formatNumber(comparisons.length)}개 모집단위 비교`;
-
-  const harder = comparisons.filter((item) => (item.expectedDelta ?? 0) > 0);
-  const easier = comparisons.filter((item) => (item.expectedDelta ?? 0) < 0);
-  const largest = [...comparisons].sort(
-    (left, right) => Math.abs(right.expectedDelta ?? 0) - Math.abs(left.expectedDelta ?? 0)
-  )[0];
-
-  const cards = [
-    { label: "비교 가능", value: comparisons.length, note: "25와 26 모두 존재" },
-    { label: "26이 더 높음", value: harder.length, note: "예상점수 상승" },
-    { label: "26이 더 낮음", value: easier.length, note: "예상점수 하락" },
-    { label: "최대 변동", value: largest ? formatDelta(largest.expectedDelta).text : "-", note: largest ? largest.label : "변동 없음" }
-  ];
-
-  for (const item of cards) {
-    const card = document.createElement("article");
-    card.className = "compare-card";
-    card.innerHTML = `
-      <strong>${escapeHtml(item.label)}</strong>
-      <div class="value">${escapeHtml(String(item.value))}</div>
-      <small>${escapeHtml(item.note)}</small>
-    `;
-    elements.compareGrid.append(card);
-  }
-
-  const topMovers = [...comparisons]
-    .sort((left, right) => Math.abs(right.expectedDelta ?? 0) - Math.abs(left.expectedDelta ?? 0))
-    .slice(0, 8);
-
-  for (const item of topMovers) {
-    const delta = formatDelta(item.expectedDelta);
-    const wrapper = document.createElement("div");
-    wrapper.className = "compare-item";
-    wrapper.innerHTML = `
-      <strong>${escapeHtml(item.label)}</strong>
-      <div class="muted">${escapeHtml(item.selectionType || "-")}</div>
-      <div>예상점수 변화 <span class="delta ${delta.tone}">${delta.text}</span></div>
-    `;
-    elements.compareList.append(wrapper);
-  }
-}
-
-function renderAll() {
-  renderFileList();
-  renderTrackTabs();
-  renderSummary();
-  renderFilters();
-  renderCompare();
-  renderResults();
-
-  if (!state.analyses.size) {
-    setUploadStatus("파일을 불러오지 않았습니다.");
-  } else {
-    const active = getActiveAnalysis();
-    setUploadStatus(`${getSortedAnalyses().length}개 파일 로드됨 · 현재 ${active.yearLabel}`);
-  }
-}
-
-async function readWorkbook(file) {
-  const buffer = await file.arrayBuffer();
-  return XLSX.read(buffer, {
-    type: "array",
-    cellFormula: true,
-    dense: false
+  elements.searchInput.addEventListener("input", () => {
+    state.search = elements.searchInput.value;
+    renderResults();
   });
 }
 
-async function handleFiles(fileList) {
-  const files = [...fileList];
-  if (!files.length) {
-    return;
-  }
-
-  setUploadStatus("분석기 파일을 읽는 중입니다...");
-
-  for (const file of files) {
-    try {
-      const workbook = await readWorkbook(file);
-      const analysis = extractAnalysis(file, workbook);
-      state.analyses.set(analysis.yearKey, analysis);
-      state.activeYearKey = analysis.yearKey;
-    } catch (error) {
-      setUploadStatus(`파일 읽기 실패: ${file.name}`);
-      console.error(error);
+async function loadData() {
+  updateLoadBadge("데이터 불러오는 중");
+  const response = await fetch("./data/analyzer-26.json");
+  state.data = await response.json();
+  state.compiledColumns = state.data.computeColumns.map((column) => ({
+    ...column,
+    compiledRows: compileFormulaObject(column.rows)
+  }));
+  state.compiledRestrictRows = state.data.restrict.map((row) => ({
+    ...row,
+    mathInquiry: {
+      ...row.mathInquiry,
+      resultAst: row.mathInquiry.resultFormula ? parseFormula(row.mathInquiry.resultFormula) : null
+    },
+    grade: {
+      ...row.grade,
+      resultAst: null
+    },
+    designatedScience: {
+      ...row.designatedScience,
+      resultAst: row.designatedScience.resultFormula ? parseFormula(row.designatedScience.resultFormula) : null
     }
-  }
-
-  state.selectedProgramKey = null;
-  renderAll();
+  }));
+  buildIndexes();
+  state.data.schoolRows.forEach((row) => {
+    state.schoolValues.set(row.formulaCode, row.finalValue ?? 0);
+  });
+  state.inputDraft = buildDefaultInputDraft();
+  updateLoadBadge("26수능 데이터 로드 완료");
+  elements.stampChip.textContent = state.data.workbookStamp || "원본 엑셀 기준 시점";
 }
 
-function clearAll() {
-  state.analyses.clear();
-  state.activeYearKey = null;
-  state.track = TRACKS[0];
-  state.status = "all";
-  state.group = "all";
-  state.region = "all";
-  state.sort = "status";
-  state.search = "";
-  state.filteredRows = [];
-  state.selectedProgramKey = null;
-  elements.fileInput.value = "";
-  renderAll();
+async function bootstrap() {
+  try {
+    await loadData();
+    initFormControls();
+    bindEvents();
+    runAnalysis();
+  } catch (error) {
+    console.error(error);
+    updateLoadBadge("데이터 로드 실패");
+    setComputeBadge("계산 불가");
+    elements.resultBody.innerHTML = `<tr><td colspan="4" class="empty">분석기 데이터를 불러오지 못했습니다.</td></tr>`;
+  }
 }
 
-elements.fileInput.addEventListener("change", (event) => {
-  void handleFiles(event.target.files);
-});
-
-elements.clearButton.addEventListener("click", clearAll);
-
-elements.yearFilter.addEventListener("change", (event) => {
-  state.activeYearKey = event.target.value === "all" ? getSortedAnalyses()[0]?.yearKey || null : event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.statusFilter.addEventListener("change", (event) => {
-  state.status = event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.groupFilter.addEventListener("change", (event) => {
-  state.group = event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.regionFilter.addEventListener("change", (event) => {
-  state.region = event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.sortFilter.addEventListener("change", (event) => {
-  state.sort = event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.searchInput.addEventListener("input", (event) => {
-  state.search = event.target.value;
-  state.selectedProgramKey = null;
-  renderAll();
-});
-
-elements.resultBody.addEventListener("click", (event) => {
-  const row = event.target.closest("tr[data-key]");
-  if (!row) {
-    return;
-  }
-
-  state.selectedProgramKey = row.dataset.key;
-  renderResults();
-});
-
-["dragenter", "dragover"].forEach((eventName) => {
-  elements.dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    elements.dropzone.classList.add("is-dragging");
-  });
-});
-
-["dragleave", "drop"].forEach((eventName) => {
-  elements.dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    elements.dropzone.classList.remove("is-dragging");
-  });
-});
-
-elements.dropzone.addEventListener("drop", (event) => {
-  const files = event.dataTransfer?.files;
-  if (files?.length) {
-    void handleFiles(files);
-  }
-});
-
-renderAll();
+bootstrap();
