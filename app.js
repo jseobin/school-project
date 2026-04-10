@@ -24,9 +24,6 @@ const elements = {
   loadBadge: document.getElementById("load-badge"),
   stampChip: document.getElementById("stamp-chip"),
   resetButton: document.getElementById("reset-button"),
-  inputSummary: document.getElementById("input-summary"),
-  spotlight: document.getElementById("spotlight"),
-  watchlist: document.getElementById("watchlist"),
   schoolGrid: document.getElementById("school-grid"),
   koreanSubject: document.getElementById("korean-subject"),
   koreanScore: document.getElementById("korean-score"),
@@ -43,9 +40,13 @@ const elements = {
   computeBadge: document.getElementById("compute-badge"),
   resultCaption: document.getElementById("result-caption"),
   trackTabs: document.getElementById("track-tabs"),
-  searchInput: document.getElementById("search-input"),
+  universitySearch: document.getElementById("university-search"),
+  majorSearch: document.getElementById("major-search"),
+  clearSearchButton: document.getElementById("clear-search-button"),
+  filterSummary: document.getElementById("filter-summary"),
   resultBody: document.getElementById("result-body"),
   metricTotal: document.getElementById("metric-total"),
+  metricFiltered: document.getElementById("metric-filtered"),
   metricGood: document.getElementById("metric-good"),
   metricMid: document.getElementById("metric-mid"),
   metricLow: document.getElementById("metric-low")
@@ -59,7 +60,10 @@ const state = {
   examBySubject: new Map(),
   schoolValues: new Map(),
   track: "이과",
-  search: "",
+  filters: {
+    university: "",
+    major: ""
+  },
   lastResults: [],
   inputDraft: null
 };
@@ -90,6 +94,24 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function includesAllTerms(text, query) {
+  const normalizedText = normalizeSearchText(text);
+  const terms = normalizeSearchText(query).split(" ").filter(Boolean);
+
+  if (!terms.length) {
+    return true;
+  }
+
+  return terms.every((term) => normalizedText.includes(term));
 }
 
 function updateLoadBadge(text) {
@@ -1413,13 +1435,10 @@ function runAnalysis() {
 
 function getActiveRows() {
   const rows = state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
-  const keyword = state.search.trim().toLowerCase();
+  const { university, major } = state.filters;
 
   const filtered = rows.filter((row) => {
-    if (!keyword) {
-      return true;
-    }
-    return `${row.university} ${row.major}`.toLowerCase().includes(keyword);
+    return includesAllTerms(row.university, university) && includesAllTerms(row.major, major);
   });
 
   filtered.sort((left, right) => {
@@ -1433,7 +1452,7 @@ function getActiveRows() {
   return filtered;
 }
 
-function renderStats(rows) {
+function renderStats(rows, totalRows) {
   const counts = { good: 0, mid: 0, low: 0 };
 
   rows.forEach((row) => {
@@ -1446,111 +1465,25 @@ function renderStats(rows) {
     }
   });
 
-  elements.metricTotal.textContent = formatNumber(rows.length);
+  elements.metricTotal.textContent = formatNumber(totalRows.length);
+  elements.metricFiltered.textContent = formatNumber(rows.length);
   elements.metricGood.textContent = formatNumber(counts.good);
   elements.metricMid.textContent = formatNumber(counts.mid);
   elements.metricLow.textContent = formatNumber(counts.low);
 }
 
-function renderInputSummary() {
-  if (!elements.inputSummary || !state.inputDraft) {
-    return;
-  }
-
-  const draft = state.inputDraft;
-  const chips = [
-    { label: "국어", value: `${draft.koreanSubject || "미선택"} ${formatNumber(draft.koreanScore)}` },
-    { label: "수학", value: `${draft.mathSubject || "미선택"} ${formatNumber(draft.mathScore)}` },
-    { label: "영어", value: `${formatNumber(draft.englishGrade)}등급` },
-    { label: "한국사", value: `${formatNumber(draft.historyGrade)}등급` },
-    { label: "탐구 1", value: `${draft.inquiryOneSubject || "미선택"} ${formatNumber(draft.inquiryOneScore)}` },
-    { label: "탐구 2", value: `${draft.inquiryTwoSubject || "미선택"} ${formatNumber(draft.inquiryTwoScore)}` },
-    { label: "제2외국어", value: `${draft.foreignSubject || "미선택"} ${formatNumber(draft.foreignGrade)}` }
-  ];
-
-  elements.inputSummary.innerHTML = chips.map((chip) => `
-    <div class="summary-chip">
-      <span>${escapeHtml(chip.label)}</span>
-      <strong>${escapeHtml(chip.value)}</strong>
-    </div>
-  `).join("");
-}
-
-function renderSpotlight(rows) {
-  if (!elements.spotlight) {
-    return;
-  }
-
-  const row = rows[0];
-  if (!row) {
-    elements.spotlight.innerHTML = `<div class="spotlight-card"><p>검색 결과가 없습니다.</p></div>`;
-    return;
-  }
-
-  const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
-  const gapInfo = getLineGapInfo(row);
-
-  elements.spotlight.innerHTML = `
-    <article class="spotlight-card">
-      <div class="spotlight-head">
-        <span class="status-pill ${tone}">${escapeHtml(row.status)}</span>
-        <h3>${escapeHtml(row.university)}</h3>
-        <p>${escapeHtml(row.major)}</p>
-      </div>
-      <div class="spotlight-score-grid">
-        <div class="spotlight-metric">
-          <span>현재 총점</span>
-          <strong>${formatNumber(row.totalScore)}</strong>
-        </div>
-        <div class="spotlight-metric">
-          <span>${escapeHtml(gapInfo.label)}</span>
-          <strong>${formatSignedNumber(gapInfo.delta)}</strong>
-        </div>
-      </div>
-      <p>수능 ${formatNumber(row.examScore)} · 내신 ${formatNumber(row.schoolScore)} · 적정선 ${formatNumber(row.properScore)}</p>
-    </article>
-  `;
-}
-
-function renderWatchlist(rows) {
-  if (!elements.watchlist) {
-    return;
-  }
-
-  if (!rows.length) {
-    elements.watchlist.innerHTML = `<div class="watch-item"><p>표시할 후보군이 없습니다.</p></div>`;
-    return;
-  }
-
-  elements.watchlist.innerHTML = rows.slice(0, 5).map((row) => {
-    const gapInfo = getLineGapInfo(row);
-    const tone = TONE_BY_STATUS[row.status] || "tone-neutral";
-
-    return `
-      <article class="watch-item">
-        <div class="watch-item-head">
-          <div class="program">
-            <strong>${escapeHtml(row.university)}</strong>
-            <small>${escapeHtml(row.major)}</small>
-          </div>
-          <span class="status-pill ${tone}">${escapeHtml(row.status)}</span>
-        </div>
-        <div class="watch-item-metrics">
-          <span>총점 ${formatNumber(row.totalScore)}</span>
-          <span>${escapeHtml(gapInfo.label)} ${formatSignedNumber(gapInfo.delta)}</span>
-        </div>
-      </article>
-    `;
-  }).join("");
-}
-
 function renderResults() {
+  const totalRows = state.track === "문과" ? state.lastResults.humanities : state.lastResults.science;
   const rows = getActiveRows();
-  renderStats(rows);
-  renderInputSummary();
-  renderSpotlight(rows);
-  renderWatchlist(rows);
-  elements.resultCaption.textContent = `정시 ${state.track} 기준 ${formatNumber(rows.length)}개 모집단위를 실시간 계산했습니다.`;
+  renderStats(rows, totalRows);
+
+  if (elements.filterSummary) {
+    const universityLabel = state.filters.university ? `대학: ${state.filters.university}` : "대학: 전체";
+    const majorLabel = state.filters.major ? `학과: ${state.filters.major}` : "학과: 전체";
+    elements.filterSummary.textContent = `${universityLabel} · ${majorLabel} · 현재 ${formatNumber(rows.length)}개 결과`;
+  }
+
+  elements.resultCaption.textContent = `정시 ${state.track} 기준 전체 ${formatNumber(totalRows.length)}개 중 ${formatNumber(rows.length)}개 모집단위를 표시합니다.`;
 
   if (!rows.length) {
     elements.resultBody.innerHTML = `<tr><td colspan="5" class="empty">검색 결과가 없습니다.</td></tr>`;
@@ -1633,8 +1566,23 @@ function bindEvents() {
     renderResults();
   });
 
-  elements.searchInput.addEventListener("input", () => {
-    state.search = elements.searchInput.value;
+  [elements.universitySearch, elements.majorSearch].forEach((element) => {
+    element.addEventListener("input", () => {
+      state.filters = {
+        university: elements.universitySearch.value.trim(),
+        major: elements.majorSearch.value.trim()
+      };
+      renderResults();
+    });
+  });
+
+  elements.clearSearchButton.addEventListener("click", () => {
+    elements.universitySearch.value = "";
+    elements.majorSearch.value = "";
+    state.filters = {
+      university: "",
+      major: ""
+    };
     renderResults();
   });
 }

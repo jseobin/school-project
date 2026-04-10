@@ -3,31 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>26수능 정시 전략 대시보드</title>
+  <title>26수능 정시 대시보드</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bg: #071412;
-      --bg-soft: #0d201d;
-      --panel: rgba(11, 24, 22, 0.84);
-      --panel-strong: rgba(17, 34, 31, 0.94);
-      --panel-soft: rgba(18, 39, 35, 0.72);
-      --line: rgba(143, 199, 185, 0.14);
-      --line-strong: rgba(143, 199, 185, 0.22);
-      --text: #f2f7f5;
-      --muted: #9db5af;
-      --accent: #39d0a1;
-      --accent-strong: #1d9b79;
-      --accent-soft: rgba(57, 208, 161, 0.14);
-      --sky: #62c5ff;
-      --sky-soft: rgba(98, 197, 255, 0.16);
-      --amber: #f5c14b;
-      --amber-soft: rgba(245, 193, 75, 0.16);
-      --rose: #ff7e8a;
-      --rose-soft: rgba(255, 126, 138, 0.16);
-      --shadow: rgba(0, 0, 0, 0.28);
-      --radius-xl: 30px;
-      --radius-lg: 24px;
+      color-scheme: light;
+      --bg: #edf3f8;
+      --bg-strong: #f7fafc;
+      --surface: rgba(255, 255, 255, 0.94);
+      --surface-soft: rgba(247, 251, 252, 0.96);
+      --line: rgba(53, 84, 112, 0.11);
+      --line-strong: rgba(53, 84, 112, 0.18);
+      --text: #223042;
+      --muted: #71839a;
+      --accent: #35bdf2;
+      --accent-deep: #2499d9;
+      --accent-soft: rgba(53, 189, 242, 0.12);
+      --mint: #31c9a0;
+      --mint-soft: rgba(49, 201, 160, 0.14);
+      --amber: #f2b94b;
+      --amber-soft: rgba(242, 185, 75, 0.16);
+      --rose: #ef7b7f;
+      --rose-soft: rgba(239, 123, 127, 0.14);
+      --shadow: rgba(39, 70, 100, 0.1);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
       --radius-md: 18px;
       --radius-sm: 14px;
     }
@@ -46,56 +45,14 @@
       color: var(--text);
       font-family: "Aptos", "Malgun Gothic", sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(57, 208, 161, 0.2), transparent 25rem),
-        radial-gradient(circle at 85% 18%, rgba(98, 197, 255, 0.16), transparent 24rem),
-        linear-gradient(160deg, #04100e 0%, #071412 48%, #0d1e1b 100%);
-      overflow-x: hidden;
+        radial-gradient(circle at top right, rgba(49, 201, 160, 0.12), transparent 26rem),
+        linear-gradient(180deg, #f7fafc 0%, var(--bg) 100%);
     }
 
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      inset: auto;
-      pointer-events: none;
-      z-index: 0;
-      filter: blur(24px);
-      opacity: 0.9;
-    }
-
-    body::before {
-      top: 6rem;
-      left: -6rem;
-      width: 18rem;
-      height: 18rem;
-      background: rgba(57, 208, 161, 0.18);
-      border-radius: 50%;
-      animation: float-orb 14s ease-in-out infinite;
-    }
-
-    body::after {
-      right: -6rem;
-      bottom: 10rem;
-      width: 20rem;
-      height: 20rem;
-      background: rgba(98, 197, 255, 0.12);
-      border-radius: 50%;
-      animation: float-orb 18s ease-in-out infinite reverse;
-    }
-
-    @keyframes float-orb {
-      0%, 100% {
-        transform: translate3d(0, 0, 0) scale(1);
-      }
-      50% {
-        transform: translate3d(1.8rem, -1.4rem, 0) scale(1.08);
-      }
-    }
-
-    @keyframes rise {
+    @keyframes lift {
       from {
         opacity: 0;
-        transform: translateY(18px);
+        transform: translateY(14px);
       }
       to {
         opacity: 1;
@@ -103,403 +60,364 @@
       }
     }
 
-    .page {
-      position: relative;
-      z-index: 1;
-      width: min(1540px, calc(100% - 32px));
+    .app-shell {
+      width: min(1540px, calc(100% - 24px));
       margin: 0 auto;
-      padding: 22px 0 54px;
-    }
-
-    .topbar,
-    .hero,
-    .panel,
-    .metric,
-    .hero-card {
-      animation: rise 0.7s ease both;
-    }
-
-    .topbar,
-    .hero,
-    .panel,
-    .metric,
-    .hero-card,
-    .result-shell,
-    .watch-item,
-    .subject-card,
-    .school-card,
-    .signal-card {
-      border: 1px solid var(--line);
-      box-shadow: 0 28px 80px var(--shadow);
-      backdrop-filter: blur(22px);
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 16px 0 28px;
+      display: grid;
+      grid-template-columns: 256px minmax(0, 1fr);
       gap: 18px;
-      padding: 16px 20px;
-      margin-bottom: 18px;
-      border-radius: 24px;
-      background: linear-gradient(180deg, rgba(15, 34, 31, 0.82), rgba(10, 20, 19, 0.86));
+    }
+
+    .sidebar,
+    .card,
+    .panel,
+    .metric {
+      border: 1px solid var(--line);
+      box-shadow: 0 26px 70px var(--shadow);
+      animation: lift 0.55s ease both;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      height: calc(100vh - 32px);
+      padding: 18px 16px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 252, 0.96));
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 18px;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 14px;
-      min-width: 0;
     }
 
     .brand-mark {
+      width: 52px;
+      height: 52px;
       display: grid;
       place-items: center;
-      width: 46px;
-      height: 46px;
-      border-radius: 15px;
-      font-size: 1.15rem;
+      border-radius: 18px;
+      font-size: 1.3rem;
       font-weight: 900;
-      color: #04100e;
-      background: linear-gradient(135deg, var(--accent), #89f3d0);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+      color: white;
+      background: linear-gradient(135deg, var(--mint), #54d4ff);
     }
 
     .brand-copy {
+      min-width: 0;
       display: grid;
-      gap: 2px;
+      gap: 4px;
     }
 
     .brand-copy strong {
-      font-size: 1rem;
-      letter-spacing: 0.02em;
+      font-size: 1.12rem;
+      letter-spacing: -0.02em;
     }
 
     .brand-copy span {
-      font-size: 0.82rem;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-title {
+      margin: 0 2px 4px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      color: var(--text);
+      background: transparent;
+      text-decoration: none;
+      font-size: 0.92rem;
+      font-weight: 700;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(53, 189, 242, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .nav-item.is-active {
+      color: #1576a8;
+      background: rgba(53, 189, 242, 0.14);
+    }
+
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #1576a8;
+      background: rgba(53, 189, 242, 0.12);
+    }
+
+    .sidebar-note {
+      padding: 16px;
+      border-radius: 20px;
+      background:
+        linear-gradient(140deg, rgba(49, 201, 160, 0.14), rgba(53, 189, 242, 0.08)),
+        var(--surface-soft);
+      border: 1px solid rgba(49, 201, 160, 0.16);
+    }
+
+    .sidebar-note strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.96rem;
+    }
+
+    .sidebar-note p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.6;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .workspace-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 22px;
+      border-radius: var(--radius-xl);
+      background: var(--surface);
+    }
+
+    .workspace-header h1,
+    .panel h2,
+    .panel h3,
+    .card-title {
+      margin: 0;
+      font-family: "Cambria", "Georgia", serif;
+      letter-spacing: -0.03em;
+    }
+
+    .workspace-header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+    }
+
+    .workspace-header p,
+    .panel p,
+    .metric span,
+    .filter-summary,
+    .footer-note,
+    .school-card p,
+    .meta-list span {
+      margin: 0;
       color: var(--muted);
     }
 
-    .topbar-meta {
+    .header-copy {
+      display: grid;
+      gap: 5px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: #1576a8;
+      background: rgba(53, 189, 242, 0.12);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .header-status {
       display: flex;
-      justify-content: flex-end;
       flex-wrap: wrap;
+      justify-content: flex-end;
       gap: 10px;
     }
 
     .status-chip,
-    .eyebrow,
-    .tab,
-    .status-pill,
-    .summary-chip {
+    .track-tab,
+    .tag,
+    .status-pill {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       border-radius: 999px;
       font-weight: 800;
-      letter-spacing: 0.01em;
     }
 
     .status-chip {
-      padding: 10px 14px;
-      font-size: 0.8rem;
+      padding: 11px 14px;
       color: var(--text);
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--line);
+      font-size: 0.84rem;
     }
 
-    .eyebrow {
-      width: fit-content;
-      padding: 8px 12px;
-      font-size: 0.78rem;
-      color: var(--accent);
-      background: var(--accent-soft);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-    }
-
-    .hero {
+    .overview-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
-      gap: 18px;
-      padding: 24px;
-      margin-bottom: 20px;
-      border-radius: var(--radius-xl);
-      background:
-        linear-gradient(135deg, rgba(16, 39, 35, 0.94), rgba(8, 18, 17, 0.9)),
-        radial-gradient(circle at top right, rgba(57, 208, 161, 0.12), transparent 30rem);
-      overflow: hidden;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
     }
 
-    .hero::after {
+    .metric {
+      position: relative;
+      overflow: hidden;
+      padding: 18px 20px;
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+
+    .metric::after {
       content: "";
       position: absolute;
-      inset: auto -10% -40% auto;
-      width: 24rem;
-      height: 24rem;
+      inset: auto auto -28px -10px;
+      width: 116px;
+      height: 116px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(57, 208, 161, 0.12), transparent 70%);
-      pointer-events: none;
+      background: rgba(53, 189, 242, 0.08);
+      filter: blur(4px);
     }
 
-    .hero-copy,
-    .hero-side {
+    .metric:nth-child(2)::after {
+      background: rgba(49, 201, 160, 0.1);
+    }
+
+    .metric:nth-child(3)::after {
+      background: rgba(49, 201, 160, 0.12);
+    }
+
+    .metric:nth-child(4)::after {
+      background: rgba(242, 185, 75, 0.12);
+    }
+
+    .metric:nth-child(5)::after {
+      background: rgba(239, 123, 127, 0.12);
+    }
+
+    .metric span {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .metric strong {
       position: relative;
       z-index: 1;
+      font-size: 1.72rem;
+      letter-spacing: -0.04em;
     }
 
-    .hero-copy {
+    .dashboard-grid {
       display: grid;
+      grid-template-columns: minmax(380px, 430px) minmax(0, 1fr);
       gap: 18px;
-      align-content: start;
-    }
-
-    h1,
-    h2,
-    h3 {
-      margin: 0;
-      font-family: "Cambria", "Georgia", serif;
-      letter-spacing: -0.03em;
-    }
-
-    h1 {
-      max-width: 11ch;
-      font-size: clamp(2.7rem, 5vw, 5rem);
-      line-height: 0.92;
-    }
-
-    h2 {
-      font-size: 1.55rem;
-    }
-
-    h3 {
-      font-size: 1.06rem;
-    }
-
-    p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .hero-copy > p {
-      max-width: 58ch;
-      font-size: 1rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px 16px;
-    }
-
-    button {
-      cursor: pointer;
-      border: 0;
-      font: inherit;
-      transition: transform 0.18s ease, filter 0.18s ease, background 0.18s ease;
-    }
-
-    button:hover {
-      filter: brightness(1.06);
-      transform: translateY(-1px);
-    }
-
-    .primary,
-    .secondary,
-    .tab {
-      padding: 12px 16px;
-    }
-
-    .primary {
-      color: #04100e;
-      background: linear-gradient(135deg, var(--accent), #93f5d5);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
-    }
-
-    .secondary {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 999px;
-    }
-
-    .hero-note {
-      max-width: 36ch;
-      font-size: 0.9rem;
-    }
-
-    .signal-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .signal-card,
-    .hero-card,
-    .metric,
-    .panel,
-    .subject-card,
-    .school-card,
-    .watch-item {
-      background: linear-gradient(180deg, rgba(20, 41, 37, 0.84), rgba(10, 22, 20, 0.88));
-    }
-
-    .signal-card {
-      padding: 18px;
-      border-radius: 20px;
-    }
-
-    .signal-card strong,
-    .metric strong,
-    .subject-card strong,
-    .school-card strong {
-      display: block;
-    }
-
-    .signal-card strong {
-      margin-bottom: 8px;
-      font-size: 0.95rem;
-    }
-
-    .hero-side {
-      display: grid;
-      gap: 16px;
-    }
-
-    .hero-card {
-      padding: 18px;
-      border-radius: 24px;
-      background:
-        linear-gradient(180deg, rgba(15, 30, 28, 0.94), rgba(8, 19, 18, 0.92)),
-        radial-gradient(circle at top right, rgba(98, 197, 255, 0.08), transparent 20rem);
-    }
-
-    .hero-card-header,
-    .panel-header,
-    .watch-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 14px;
-    }
-
-    .kicker {
-      display: inline-flex;
-      margin-bottom: 8px;
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--sky);
-    }
-
-    .summary-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .summary-chip {
-      padding: 10px 14px;
-      font-size: 0.83rem;
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .summary-chip strong {
-      font-size: 0.88rem;
-    }
-
-    .summary-chip span {
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .spotlight-card {
-      display: grid;
-      gap: 14px;
-      margin-top: 16px;
-      padding: 18px;
-      border-radius: 22px;
-      background:
-        linear-gradient(180deg, rgba(57, 208, 161, 0.12), rgba(57, 208, 161, 0.03)),
-        rgba(9, 19, 18, 0.8);
-      border: 1px solid rgba(57, 208, 161, 0.18);
-    }
-
-    .spotlight-head {
-      display: grid;
-      gap: 5px;
-    }
-
-    .spotlight-head p {
-      font-size: 0.92rem;
-    }
-
-    .spotlight-score-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .spotlight-metric {
-      padding: 12px 14px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .spotlight-metric span,
-    .metric span,
-    .gap-label,
-    .thresholds span,
-    .score-stack span,
-    .watch-item small {
-      color: var(--muted);
-    }
-
-    .spotlight-metric strong,
-    .score-stack strong,
-    .gap-block strong,
-    .metric strong {
-      font-size: 1.35rem;
-      letter-spacing: -0.03em;
-    }
-
-    .dashboard-layout {
-      display: grid;
-      grid-template-columns: minmax(350px, 410px) minmax(0, 1fr);
-      gap: 20px;
       align-items: start;
+      min-height: 0;
     }
 
-    .sidebar {
+    .control-column {
       position: sticky;
-      top: 18px;
+      top: 16px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 6px;
       display: grid;
       gap: 18px;
     }
 
     .panel {
-      padding: 22px;
+      padding: 20px;
       border-radius: var(--radius-lg);
-      background:
-        linear-gradient(180deg, rgba(13, 27, 25, 0.92), rgba(9, 18, 17, 0.94)),
-        radial-gradient(circle at top right, rgba(57, 208, 161, 0.08), transparent 18rem);
+      background: var(--surface);
     }
 
     .panel-header {
-      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel-header h2 {
+      font-size: 1.45rem;
     }
 
     .panel-header p {
-      max-width: 44ch;
-      font-size: 0.93rem;
+      font-size: 0.92rem;
+      max-width: 40ch;
+    }
+
+    .panel-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease, background 0.16s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.03);
+      transform: translateY(-1px);
+    }
+
+    .primary-button,
+    .ghost-button,
+    .track-tab {
+      padding: 11px 16px;
+      border-radius: 999px;
+      font-weight: 800;
+    }
+
+    .primary-button {
+      color: white;
+      background: linear-gradient(135deg, var(--mint), var(--accent));
+    }
+
+    .ghost-button {
+      color: var(--text);
+      background: rgba(53, 84, 112, 0.07);
+      border: 1px solid var(--line);
     }
 
     .subject-grid {
@@ -511,63 +429,71 @@
     .subject-card,
     .school-card {
       padding: 16px;
-      border-radius: 20px;
+      border-radius: var(--radius-md);
+      background: var(--surface-soft);
+      border: 1px solid rgba(53, 84, 112, 0.08);
     }
 
     .subject-card.wide {
       grid-column: 1 / -1;
     }
 
-    .subject-card strong {
+    .subject-card strong,
+    .school-card strong {
+      display: block;
       margin-bottom: 10px;
+      font-size: 0.95rem;
     }
 
+    .inline-fields,
     .field,
-    .inline-fields {
+    .search-grid {
       display: grid;
       gap: 10px;
     }
 
     .inline-fields {
-      grid-template-columns: minmax(0, 1fr) 110px;
+      grid-template-columns: minmax(0, 1fr) 122px;
     }
 
     label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
       font-size: 0.8rem;
       font-weight: 800;
       letter-spacing: 0.02em;
-      color: var(--muted);
     }
 
     input,
     select {
       width: 100%;
       border: 1px solid var(--line-strong);
-      border-radius: 16px;
-      padding: 12px 14px;
+      border-radius: 14px;
+      padding: 12px 13px;
       color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
+      background: white;
       font: inherit;
-      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
     }
 
     input:focus,
     select:focus {
       outline: none;
-      border-color: rgba(57, 208, 161, 0.42);
-      background: rgba(255, 255, 255, 0.07);
-      box-shadow: 0 0 0 4px rgba(57, 208, 161, 0.08);
+      border-color: rgba(53, 189, 242, 0.48);
+      box-shadow: 0 0 0 4px rgba(53, 189, 242, 0.08);
     }
 
     input::placeholder {
-      color: #85a39c;
+      color: #8fa3b7;
     }
 
     .school-grid {
       display: grid;
       gap: 12px;
       max-height: 420px;
-      overflow: auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       padding-right: 4px;
     }
 
@@ -577,154 +503,68 @@
     }
 
     .school-card p {
-      font-size: 0.86rem;
+      font-size: 0.84rem;
     }
 
-    .content {
+    .result-board {
       display: grid;
       gap: 18px;
     }
 
-    .overview-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .metric {
-      padding: 18px 20px;
-      border-radius: 22px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .metric::after {
-      content: "";
-      position: absolute;
-      inset: auto auto -22px -10px;
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      background: rgba(57, 208, 161, 0.08);
-      filter: blur(6px);
-    }
-
-    .metric--primary::after {
-      background: rgba(98, 197, 255, 0.12);
-    }
-
-    .metric--good::after {
-      background: rgba(57, 208, 161, 0.14);
-    }
-
-    .metric--mid::after {
-      background: rgba(245, 193, 75, 0.12);
-    }
-
-    .metric--low::after {
-      background: rgba(255, 126, 138, 0.14);
-    }
-
-    .metric span {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 0.82rem;
-      font-weight: 800;
-    }
-
-    .result-panel {
-      display: grid;
-      gap: 18px;
-    }
-
-    .panel-header--result {
+    .result-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: 18px;
     }
 
-    .panel-actions {
-      display: grid;
-      gap: 12px;
-      justify-items: end;
-      min-width: min(100%, 420px);
+    .result-header h2 {
+      font-size: 1.5rem;
     }
 
-    .tab-row {
+    .track-row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+      justify-content: flex-end;
     }
 
-    .tab {
+    .track-tab {
       color: var(--muted);
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(53, 84, 112, 0.06);
+      border: 1px solid var(--line);
     }
 
-    .tab.is-active {
-      color: #04100e;
-      background: linear-gradient(135deg, var(--accent), #89f3d0);
+    .track-tab.is-active {
+      color: white;
+      background: linear-gradient(135deg, var(--mint), var(--accent));
+      border-color: transparent;
     }
 
-    .search-wrap {
-      width: min(100%, 420px);
-    }
-
-    .result-layout {
+    .search-card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: var(--bg-strong);
+      border: 1px solid rgba(53, 84, 112, 0.08);
       display: grid;
-      grid-template-columns: minmax(270px, 310px) minmax(0, 1fr);
-      gap: 16px;
-      align-items: start;
+      gap: 14px;
     }
 
-    .watch-panel {
-      display: grid;
-      gap: 12px;
-      padding: 16px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+    .search-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      align-items: end;
     }
 
-    .watchlist {
-      display: grid;
-      gap: 10px;
+    .filter-summary {
+      font-size: 0.88rem;
+      line-height: 1.5;
     }
 
-    .watch-item {
-      display: grid;
-      gap: 8px;
-      padding: 14px;
-      border-radius: 18px;
-    }
-
-    .watch-item-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .watch-item strong {
-      font-size: 0.96rem;
-    }
-
-    .watch-item p {
-      font-size: 0.82rem;
-    }
-
-    .watch-item-metrics {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 0.82rem;
-    }
-
-    .result-shell {
+    .table-shell {
+      border-radius: var(--radius-lg);
       overflow: hidden;
-      border-radius: 24px;
-      background: linear-gradient(180deg, rgba(17, 34, 31, 0.92), rgba(10, 20, 19, 0.94));
+      border: 1px solid rgba(53, 84, 112, 0.09);
+      background: white;
     }
 
     table {
@@ -733,26 +573,26 @@
     }
 
     thead th {
-      padding: 15px 16px;
-      text-align: left;
-      font-size: 0.8rem;
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.04);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      letter-spacing: 0.02em;
       position: sticky;
       top: 0;
       z-index: 1;
+      padding: 14px 16px;
+      text-align: left;
+      background: #f8fbfd;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
+      border-bottom: 1px solid rgba(53, 84, 112, 0.08);
     }
 
     tbody td {
-      padding: 15px 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(53, 84, 112, 0.06);
       vertical-align: top;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     tbody tr:hover {
-      background: rgba(57, 208, 161, 0.06);
+      background: rgba(53, 189, 242, 0.04);
     }
 
     .program {
@@ -760,35 +600,39 @@
       gap: 5px;
     }
 
+    .program strong {
+      font-size: 0.96rem;
+    }
+
     .program small {
       color: var(--muted);
-      font-size: 0.83rem;
+      font-size: 0.82rem;
     }
 
     .status-pill {
-      min-width: 104px;
-      padding: 9px 12px;
+      min-width: 102px;
+      padding: 8px 12px;
       font-size: 0.79rem;
     }
 
     .tone-good {
-      color: #88f2cb;
-      background: rgba(57, 208, 161, 0.14);
+      color: #14825d;
+      background: var(--mint-soft);
     }
 
     .tone-warn {
-      color: #ffd874;
-      background: rgba(245, 193, 75, 0.16);
+      color: #a67009;
+      background: var(--amber-soft);
     }
 
     .tone-bad {
-      color: #ff9ca5;
-      background: rgba(255, 126, 138, 0.16);
+      color: #b14f5a;
+      background: var(--rose-soft);
     }
 
     .tone-neutral {
-      color: #c5d3cf;
-      background: rgba(255, 255, 255, 0.08);
+      color: #5d7285;
+      background: rgba(83, 109, 131, 0.1);
     }
 
     .score-stack,
@@ -801,24 +645,29 @@
     .score-stack strong,
     .gap-block strong {
       font-size: 1.02rem;
+      letter-spacing: -0.02em;
     }
 
-    .gap-block.positive strong {
-      color: #88f2cb;
-    }
-
-    .gap-block.negative strong {
-      color: #ff9ca5;
-    }
-
-    .footer-note {
-      margin-top: 0;
-      font-size: 0.84rem;
+    .gap-label {
+      font-size: 0.8rem;
       color: var(--muted);
     }
 
+    .gap-block.positive strong {
+      color: #14825d;
+    }
+
+    .gap-block.negative strong {
+      color: #b14f5a;
+    }
+
+    .footer-note {
+      font-size: 0.84rem;
+      line-height: 1.6;
+    }
+
     .empty {
-      padding: 34px 18px;
+      padding: 30px 16px;
       text-align: center;
       color: var(--muted);
     }
@@ -829,73 +678,78 @@
     }
 
     ::-webkit-scrollbar-thumb {
-      background: rgba(143, 199, 185, 0.2);
+      background: rgba(83, 109, 131, 0.2);
       border-radius: 999px;
     }
 
-    @media (max-width: 1280px) {
-      .hero,
-      .result-layout {
+    @media (max-width: 1340px) {
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
 
-      .dashboard-layout {
+      .control-column {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .app-shell {
         grid-template-columns: 1fr;
       }
 
       .sidebar {
         position: static;
+        height: auto;
+      }
+
+      .overview-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 920px) {
-      .topbar,
-      .panel-header--result,
-      .hero-actions {
-        grid-template-columns: 1fr;
-      }
-
-      .topbar,
-      .panel-header--result {
+    @media (max-width: 860px) {
+      .workspace-header,
+      .result-header {
         display: grid;
       }
 
-      .topbar-meta,
-      .panel-actions {
-        justify-content: stretch;
+      .header-status,
+      .track-row {
+        justify-content: flex-start;
       }
 
-      .signal-grid,
-      .overview-grid,
-      .subject-grid {
-        grid-template-columns: 1fr 1fr;
+      .overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .subject-grid,
+      .search-grid {
+        grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 720px) {
-      .page {
-        width: min(100% - 16px, 100%);
-        padding-top: 16px;
+      .app-shell {
+        width: min(100% - 14px, 100%);
+        padding-top: 14px;
       }
 
-      .topbar,
-      .hero,
+      .sidebar,
+      .workspace-header,
       .panel,
       .metric {
-        border-radius: 20px;
+        border-radius: 18px;
       }
 
-      .topbar,
-      .hero,
+      .sidebar,
+      .workspace-header,
       .panel {
         padding: 16px;
       }
 
-      h1 {
-        font-size: 2.3rem;
-      }
-
-      .signal-grid,
       .overview-grid,
       .subject-grid,
       .inline-fields {
@@ -926,265 +780,253 @@
         padding: 8px 14px;
         border-bottom: 0;
       }
-
-      .result-shell {
-        padding: 6px 0;
-      }
     }
   </style>
 </head>
 <body>
-  <main class="page">
-    <header class="topbar">
+  <div class="app-shell">
+    <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">J</div>
         <div class="brand-copy">
           <strong>Jeongsi Board</strong>
-          <span>26수능 정시 전용 합격예측 대시보드</span>
-        </div>
-      </div>
-      <div class="topbar-meta">
-        <span class="status-chip" id="load-badge">데이터 불러오는 중</span>
-        <span class="status-chip" id="compute-badge">계산 대기</span>
-        <span class="status-chip" id="stamp-chip">원본 기준 시점 로드 대기</span>
-      </div>
-    </header>
-
-    <section class="hero">
-      <div class="hero-copy">
-        <span class="eyebrow">Jeongsi Only</span>
-        <h1>26수능 정시 전략 대시보드</h1>
-        <p>
-          엑셀 업로드 없이 점수만 직접 입력하면, 26수능 분석기의 환산식과 지원선을 바로 계산합니다.
-          수시 비교나 업로드 절차를 덜어내고 정시 판단에 필요한 화면만 남겼습니다.
-        </p>
-        <div class="hero-actions">
-          <button class="primary" id="reset-button" type="button">기본값 복원</button>
-          <p class="hero-note">입력값이 바뀌는 즉시 전체 모집단위가 다시 계산됩니다.</p>
-        </div>
-        <div class="signal-grid">
-          <article class="signal-card">
-            <strong>실시간 환산점수</strong>
-            <p>과목 선택과 점수를 바꾸면 정시 결과표가 즉시 다시 계산됩니다.</p>
-          </article>
-          <article class="signal-card">
-            <strong>정시 전용 보드</strong>
-            <p>정시 이과 / 문과 결과와 지원선 판단만 빠르게 확인하도록 정리했습니다.</p>
-          </article>
-          <article class="signal-card">
-            <strong>내신 보정 반영</strong>
-            <p>필요한 대학만 내신 보정값을 손봐서 학교별 변동도 바로 확인할 수 있습니다.</p>
-          </article>
+          <span>26수능 정시 전용 합격예측 보드</span>
         </div>
       </div>
 
-      <div class="hero-side">
-        <article class="hero-card">
-          <div class="hero-card-header">
-            <div>
-              <span class="kicker">Current Profile</span>
-              <h2>입력 스냅샷</h2>
-            </div>
-          </div>
-          <div class="summary-chips" id="input-summary"></div>
+      <div class="nav-group">
+        <div class="nav-title">Main</div>
+        <a class="nav-item is-active" href="#dashboard-home">
+          <span>Dashboard</span>
+          <span class="nav-badge">ON</span>
+        </a>
+        <a class="nav-item" href="#input-desk">
+          <span>Input Desk</span>
+          <span class="nav-badge">1</span>
+        </a>
+        <a class="nav-item" href="#school-modifier">
+          <span>School Modifier</span>
+          <span class="nav-badge">2</span>
+        </a>
+        <a class="nav-item" href="#result-board">
+          <span>Result Board</span>
+          <span class="nav-badge">3</span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">Status</div>
+        <div class="sidebar-note">
+          <strong>정시 계산 전용</strong>
+          <p>상단 추천 영역은 제거했고, 입력과 결과 보드만 빠르게 오갈 수 있게 구조를 단순화했습니다.</p>
+        </div>
+      </div>
+
+      <div class="sidebar-note">
+        <strong>사용 흐름</strong>
+        <p>왼쪽 입력 패널은 독립 스크롤입니다. 결과 보드를 끝까지 내리지 않아도 입력 패널 하단까지 바로 확인할 수 있습니다.</p>
+      </div>
+    </aside>
+
+    <main class="workspace" id="dashboard-home">
+      <section class="workspace-header card">
+        <div class="header-copy">
+          <span class="eyebrow">Jeongsi Dashboard</span>
+          <h1>26수능 정시 결과 보드</h1>
+          <p>ERP 스타일 대시보드 구조로 정리한 정시 전용 계산 화면입니다. 점수 입력, 학교 보정, 대학/학과 검색을 한 흐름으로 묶었습니다.</p>
+        </div>
+        <div class="header-status">
+          <span class="status-chip" id="load-badge">데이터 불러오는 중</span>
+          <span class="status-chip" id="compute-badge">계산 대기</span>
+          <span class="status-chip" id="stamp-chip">원본 기준 시점 로드 대기</span>
+        </div>
+      </section>
+
+      <section class="overview-grid">
+        <article class="metric">
+          <span>전체 모집단위</span>
+          <strong id="metric-total">-</strong>
         </article>
-
-        <article class="hero-card">
-          <div class="hero-card-header">
-            <div>
-              <span class="kicker">Strategy Spotlight</span>
-              <h2>상단 추천</h2>
-            </div>
-          </div>
-          <div id="spotlight"></div>
+        <article class="metric">
+          <span>현재 검색 결과</span>
+          <strong id="metric-filtered">-</strong>
         </article>
-      </div>
-    </section>
+        <article class="metric">
+          <span>적정권</span>
+          <strong id="metric-good">-</strong>
+        </article>
+        <article class="metric">
+          <span>예상권</span>
+          <strong id="metric-mid">-</strong>
+        </article>
+        <article class="metric">
+          <span>상향 / 제외</span>
+          <strong id="metric-low">-</strong>
+        </article>
+      </section>
 
-    <section class="dashboard-layout">
-      <aside class="sidebar">
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="kicker">Input Deck</span>
-              <h2>정시 입력 패널</h2>
-              <p>선택 과목과 점수를 입력하면 정시 환산 결과가 즉시 반영됩니다.</p>
+      <section class="dashboard-grid">
+        <div class="control-column">
+          <section class="panel" id="input-desk">
+            <div class="panel-header">
+              <div>
+                <h2>Input Desk</h2>
+                <p>국어, 수학, 영어, 한국사, 탐구, 제2외국어 입력을 이 패널에서 바로 수정합니다.</p>
+              </div>
+              <div class="panel-tools">
+                <button class="primary-button" id="reset-button" type="button">기본값 복원</button>
+              </div>
             </div>
-          </div>
-          <div class="subject-grid">
-            <article class="subject-card">
-              <strong>국어</strong>
-              <div class="inline-fields">
-                <div class="field">
-                  <label for="korean-subject">선택 과목</label>
-                  <select id="korean-subject"></select>
-                </div>
-                <div class="field">
-                  <label for="korean-score">표준점수</label>
-                  <input id="korean-score" type="number" min="0" step="1">
-                </div>
-              </div>
-            </article>
 
-            <article class="subject-card">
-              <strong>수학</strong>
-              <div class="inline-fields">
-                <div class="field">
-                  <label for="math-subject">선택 과목</label>
-                  <select id="math-subject"></select>
+            <div class="subject-grid">
+              <article class="subject-card">
+                <strong>국어</strong>
+                <div class="inline-fields">
+                  <label for="korean-subject">
+                    선택 과목
+                    <select id="korean-subject"></select>
+                  </label>
+                  <label for="korean-score">
+                    표준점수
+                    <input id="korean-score" type="number" min="0" step="1">
+                  </label>
                 </div>
-                <div class="field">
-                  <label for="math-score">표준점수</label>
-                  <input id="math-score" type="number" min="0" step="1">
-                </div>
-              </div>
-            </article>
+              </article>
 
-            <article class="subject-card">
-              <strong>영어</strong>
-              <div class="field">
-                <label for="english-grade">등급</label>
-                <input id="english-grade" type="number" min="1" max="9" step="1">
-              </div>
-            </article>
+              <article class="subject-card">
+                <strong>수학</strong>
+                <div class="inline-fields">
+                  <label for="math-subject">
+                    선택 과목
+                    <select id="math-subject"></select>
+                  </label>
+                  <label for="math-score">
+                    표준점수
+                    <input id="math-score" type="number" min="0" step="1">
+                  </label>
+                </div>
+              </article>
 
-            <article class="subject-card">
-              <strong>한국사</strong>
-              <div class="field">
-                <label for="history-grade">등급</label>
-                <input id="history-grade" type="number" min="1" max="9" step="1">
-              </div>
-            </article>
+              <article class="subject-card">
+                <strong>영어</strong>
+                <label for="english-grade">
+                  등급
+                  <input id="english-grade" type="number" min="1" max="9" step="1">
+                </label>
+              </article>
 
-            <article class="subject-card wide">
-              <strong>탐구 1</strong>
-              <div class="inline-fields">
-                <div class="field">
-                  <label for="inquiry-one-subject">과목</label>
-                  <select id="inquiry-one-subject"></select>
-                </div>
-                <div class="field">
-                  <label for="inquiry-one-score">표준점수</label>
-                  <input id="inquiry-one-score" type="number" min="0" step="1">
-                </div>
-              </div>
-            </article>
+              <article class="subject-card">
+                <strong>한국사</strong>
+                <label for="history-grade">
+                  등급
+                  <input id="history-grade" type="number" min="1" max="9" step="1">
+                </label>
+              </article>
 
-            <article class="subject-card wide">
-              <strong>탐구 2</strong>
-              <div class="inline-fields">
-                <div class="field">
-                  <label for="inquiry-two-subject">과목</label>
-                  <select id="inquiry-two-subject"></select>
+              <article class="subject-card wide">
+                <strong>탐구 1</strong>
+                <div class="inline-fields">
+                  <label for="inquiry-one-subject">
+                    과목
+                    <select id="inquiry-one-subject"></select>
+                  </label>
+                  <label for="inquiry-one-score">
+                    표준점수
+                    <input id="inquiry-one-score" type="number" min="0" step="1">
+                  </label>
                 </div>
-                <div class="field">
-                  <label for="inquiry-two-score">표준점수</label>
-                  <input id="inquiry-two-score" type="number" min="0" step="1">
-                </div>
-              </div>
-            </article>
+              </article>
 
-            <article class="subject-card wide">
-              <strong>제2외국어 / 한문</strong>
-              <div class="inline-fields">
-                <div class="field">
-                  <label for="foreign-subject">과목</label>
-                  <select id="foreign-subject"></select>
+              <article class="subject-card wide">
+                <strong>탐구 2</strong>
+                <div class="inline-fields">
+                  <label for="inquiry-two-subject">
+                    과목
+                    <select id="inquiry-two-subject"></select>
+                  </label>
+                  <label for="inquiry-two-score">
+                    표준점수
+                    <input id="inquiry-two-score" type="number" min="0" step="1">
+                  </label>
                 </div>
-                <div class="field">
-                  <label for="foreign-grade">등급</label>
-                  <input id="foreign-grade" type="number" min="1" max="9" step="1">
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
+              </article>
 
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <span class="kicker">School Modifier</span>
-              <h2>대학별 내신 보정</h2>
-              <p>기본값으로 계산하고, 필요한 학교만 직접 수정해서 반영할 수 있습니다.</p>
+              <article class="subject-card wide">
+                <strong>제2외국어 / 한문</strong>
+                <div class="inline-fields">
+                  <label for="foreign-subject">
+                    과목
+                    <select id="foreign-subject"></select>
+                  </label>
+                  <label for="foreign-grade">
+                    등급
+                    <input id="foreign-grade" type="number" min="1" max="9" step="1">
+                  </label>
+                </div>
+              </article>
             </div>
-          </div>
-          <div class="school-grid" id="school-grid"></div>
-        </section>
-      </aside>
+          </section>
 
-      <section class="content">
-        <section class="overview-grid">
-          <article class="metric metric--primary">
-            <span>총 모집단위</span>
-            <strong id="metric-total">-</strong>
-          </article>
-          <article class="metric metric--good">
-            <span>적정권</span>
-            <strong id="metric-good">-</strong>
-          </article>
-          <article class="metric metric--mid">
-            <span>예상권</span>
-            <strong id="metric-mid">-</strong>
-          </article>
-          <article class="metric metric--low">
-            <span>상향 / 제외</span>
-            <strong id="metric-low">-</strong>
-          </article>
-        </section>
+          <section class="panel" id="school-modifier">
+            <div class="panel-header">
+              <div>
+                <h2>School Modifier</h2>
+                <p>필요한 학교만 내신 보정값을 손봐서 결과 변화까지 바로 확인할 수 있습니다.</p>
+              </div>
+            </div>
+            <div class="school-grid" id="school-grid"></div>
+          </section>
+        </div>
 
-        <section class="panel result-panel">
-          <div class="panel-header panel-header--result">
+        <section class="panel result-board" id="result-board">
+          <div class="result-header">
             <div>
-              <span class="kicker">Admission Radar</span>
-              <h2>정시 결과 보드</h2>
+              <h2>Result Board</h2>
               <p id="result-caption">데이터 로드 후 결과를 표시합니다.</p>
             </div>
-            <div class="panel-actions">
-              <div class="tab-row" id="track-tabs">
-                <button class="tab is-active" data-track="이과" type="button">이과</button>
-                <button class="tab" data-track="문과" type="button">문과</button>
-              </div>
-              <label class="search-wrap" for="search-input">
-                <input id="search-input" type="search" placeholder="대학 또는 모집단위 검색">
-              </label>
+            <div class="track-row" id="track-tabs">
+              <button class="track-tab is-active" data-track="이과" type="button">이과</button>
+              <button class="track-tab" data-track="문과" type="button">문과</button>
             </div>
           </div>
 
-          <div class="result-layout">
-            <aside class="watch-panel">
-              <div class="watch-panel-header">
-                <div>
-                  <span class="kicker">Watchlist</span>
-                  <h3>빠른 후보군</h3>
-                </div>
-              </div>
-              <div class="watchlist" id="watchlist"></div>
-            </aside>
-
-            <div class="result-shell">
-              <table>
-                <thead>
-                  <tr>
-                    <th>모집단위</th>
-                    <th>판단</th>
-                    <th>현재 총점</th>
-                    <th>기준선</th>
-                    <th>라인 격차</th>
-                  </tr>
-                </thead>
-                <tbody id="result-body"></tbody>
-              </table>
+          <div class="search-card">
+            <div class="search-grid">
+              <label for="university-search">
+                대학 검색
+                <input id="university-search" type="search" placeholder="예: 연세대, 가천대학교">
+              </label>
+              <label for="major-search">
+                학과 검색
+                <input id="major-search" type="search" placeholder="예: 의예과, 경영학과">
+              </label>
+              <button class="ghost-button" id="clear-search-button" type="button">검색 초기화</button>
             </div>
+            <p class="filter-summary" id="filter-summary">대학명과 학과명을 따로 입력하면 원하는 모집단위를 더 빠르게 좁힐 수 있습니다.</p>
+          </div>
+
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>모집단위</th>
+                  <th>판단</th>
+                  <th>현재 총점</th>
+                  <th>기준선</th>
+                  <th>라인 격차</th>
+                </tr>
+              </thead>
+              <tbody id="result-body"></tbody>
+            </table>
           </div>
 
           <p class="footer-note">
-            26수능 원본 분석기의 환산식과 지원선을 기반으로 정시 결과를 재계산합니다.
-            현재 화면은 정시 전용이며, 수시 판단이나 업로드 비교 흐름은 포함하지 않습니다.
+            대학명과 학과명 검색은 실시간으로 반영됩니다. 현재 화면은 정시 전용이며, 26수능 원본 분석기의 환산식과 지원선 기준을 사용합니다.
           </p>
         </section>
       </section>
-    </section>
-  </main>
+    </main>
+  </div>
 
   <script type="module" src="./app.js"></script>
 </body>
